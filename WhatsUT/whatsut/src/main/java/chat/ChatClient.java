@@ -35,7 +35,7 @@ public class ChatClient extends UnicastRemoteObject implements IChatClient {
 
     @Override
     public java.util.List<String> getUserList() throws RemoteException {
-        return server.getUserList();
+        return server.listOnlineUsers();
     }
 
     @Override

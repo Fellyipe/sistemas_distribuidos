@@ -8,4 +8,5 @@ module chat {
     exports chat.main;
     exports chat.info;
     exports chat.UI;
+    exports chat.utils;
 }

@@ -4,12 +4,15 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 
-import chat.info.UserInfo;
+import chat.info.*;
 import chat.utils.*;
 
 public class ChatServer extends UnicastRemoteObject implements IChatServer {
     private final Map<String, UserInfo> users = new HashMap<>(); // username -> UserInfo
     private final Map<String, IChatClient> onlineUsers = new HashMap<>(); // username -> client instance
+    private final Map<String, Map<String, List<MessageInfo>>> messageHistory = new HashMap<>();
+    private final Map<String, GroupInfo> groups = new HashMap<>(); // Mapeia o nome do grupo para o objeto Group
+
 
     public ChatServer() throws RemoteException {
         super();
@@ -61,12 +64,85 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
 
     @Override
     public void sendMessage(String sender, String receiver, String message) throws RemoteException {
+        
+        // Armazena a mensagem na estrutura de histórico
+        messageHistory
+            .computeIfAbsent(sender, k -> new HashMap<>())
+            .computeIfAbsent(receiver, k -> new ArrayList<>())
+            .add(new MessageInfo(sender, message));
+
+        messageHistory
+            .computeIfAbsent(receiver, k -> new HashMap<>())
+            .computeIfAbsent(sender, k -> new ArrayList<>())
+            .add(new MessageInfo(sender, message));
+        
         IChatClient client = onlineUsers.get(receiver);
         if (client != null) {
             client.receiveMessage(sender, message);
         } else {
-            System.out.println("User " + receiver + " not found.");
+            System.out.println("User " + receiver + " not found or not online.");
         }
+    }
+
+    // Recupera o histórico de mensagens entre dois usuários
+    @Override
+    public List<MessageInfo> getMessageHistory(String user1, String user2) {
+        if (messageHistory.containsKey(user1) && messageHistory.get(user1).containsKey(user2)) {
+            return messageHistory.get(user1).get(user2);
+        }
+        return new ArrayList<>(); // Retorna lista vazia se não houver histórico
+    }
+
+    @Override
+    // Criar um grupo
+    public boolean createGroup(String groupName, String description, String owner) throws RemoteException {
+        if (groups.containsKey(groupName)) {
+            return false; // Grupo com o mesmo nome já existe
+        }
+        groups.put(groupName, new GroupInfo(groupName, description, owner));
+        return true;
+    }
+
+    @Override
+    // Solicitar entrada em um grupo
+    public boolean requestJoinGroup(String groupName, String username) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+        if (group == null) {
+            return false; // Grupo não encontrado
+        }
+        if (group.getOwner().equals(username)) {
+            return false; // O dono do grupo não pode solicitar entrada
+        }
+        if (group.getMembers().contains(username)) {
+            return false; // Usuário já é membro do grupo
+        }
+        group.addPendingRequest(username);
+        return true;
+    }
+
+    @Override
+    // Aprovar ou rejeitar uma solicitação
+    public boolean approveJoinRequest(String groupName, String owner, String username, boolean approve) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+        if (group == null || !group.getOwner().equals(owner)) {
+            return false; // Grupo não encontrado ou usuário não é o dono
+        }
+
+        if (!group.getPendingRequests().contains(username)) {
+            return false; // Solicitação não encontrada
+        }
+
+        group.removePendingRequest(username);
+        if (approve) {
+            group.addMember(username);
+        }
+        return true;
+    }
+
+    @Override
+    // Listar grupos
+    public List<GroupInfo> listGroups() throws RemoteException {
+        return new ArrayList<>(groups.values());
     }
 
 }

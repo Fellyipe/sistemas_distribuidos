@@ -10,9 +10,14 @@ import javafx.stage.Stage;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import chat.*;
+import chat.info.*;
 
 public class ChatUI {
     private Stage primaryStage;
@@ -20,6 +25,8 @@ public class ChatUI {
     private Registry registry;      // Registro RMI
     private String username;        // Nome do usuário logado (opcional, útil para exibições)
     private IChatClient client;
+    private Map<String, TextArea> privateChatWindows = new HashMap<>();
+    private Set<String> openChats = new HashSet<>();
 
     public ChatUI(Stage primaryStage) {
         this.primaryStage = primaryStage;
@@ -41,6 +48,18 @@ public class ChatUI {
 
     public IChatClient getClient() {
         return client;
+    }
+
+    public boolean isChatWindowOpen(String sender) {
+        return openChats.contains(sender);
+    }
+    
+    public void markChatAsOpen(String sender) {
+        openChats.add(sender);
+    }
+    
+    public void markChatAsClosed(String sender) {
+        openChats.remove(sender);
     }
     
     // Tela de Início: Exibe opções de Login ou Registro
@@ -86,7 +105,7 @@ public class ChatUI {
                 String username = usernameField.getText();
                 String password = passwordField.getText();
 
-                client = new ChatClient(username, server);
+                client = new ChatClient(username, server, this);
 
                 if (client.login(password)) {
                     statusLabel.setText("Login successful!");
@@ -166,34 +185,47 @@ public class ChatUI {
             // Obtém as listas do servidor
             List<String> allUsers = server.listUsers();
             List<String> onlineUsers = server.listOnlineUsers();
-
+            
             VBox userListLayout = new VBox(10);
             userListLayout.setPadding(new Insets(10));
-
+            
             Label title = new Label("Lista de Usuários:");
             title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold;");
-
+            
             Label loggedInUserLabel = new Label("Você está logado como: " + username);
             loggedInUserLabel.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
-
+            
             // Exibe a lista de usuários cadastrados
             Label allUsersLabel = new Label("Usuários cadastrados:");
             ListView<String> allUsersView = new ListView<>(FXCollections.observableArrayList(allUsers));
-
+            
             // Exibe a lista de usuários online
             Label onlineUsersLabel = new Label("Usuários online:");
             ListView<String> onlineUsersView = new ListView<>(FXCollections.observableArrayList(onlineUsers));
-
+            
             Button backButton = new Button("Voltar");
             backButton.setOnAction(e -> showChatWindow());
+            
+            // Ação para iniciar o chat privado
+            Button privateChatButton = new Button("Iniciar Chat Privado");
+            privateChatButton.setOnAction(e -> {
+                String selectedUser = onlineUsersView.getSelectionModel().getSelectedItem();
+                if (selectedUser != null && !selectedUser.equals(username)) {
+                    showPrivateChatWindow(selectedUser); // Abre a janela de chat privado
+                } else {
+                    showError("Selecione um usuário válido.");
+                }
+            });
 
             userListLayout.getChildren().addAll(
                 title,
                 loggedInUserLabel,
                 allUsersLabel, allUsersView,
                 onlineUsersLabel, onlineUsersView,
-                backButton
+                privateChatButton, backButton
             );
+
+            
 
             Scene userListScene = new Scene(userListLayout, 400, 500);
             primaryStage.setScene(userListScene);
@@ -203,7 +235,6 @@ public class ChatUI {
         }
     }
 
-
     // Janela do Chat (após o login)
     public void showChatWindow() {
         VBox chatLayout = new VBox(10);
@@ -211,9 +242,11 @@ public class ChatUI {
     
         Label welcomeLabel = new Label("Welcome to WhatsUT!");
         Button userListButton = new Button("Ver Lista de Usuários");
+        Button groupListButton = new Button("Ver Lista de Grupos");
         Button backButton = new Button("Sair");
     
         userListButton.setOnAction(e -> showUserList());
+        groupListButton.setOnAction(e -> showGroupList());
         backButton.setOnAction(e -> {
             try {
                 if (client != null) {
@@ -225,11 +258,180 @@ public class ChatUI {
             showStartScreen(); // Volta para a tela inicial
         });
     
-        chatLayout.getChildren().addAll(welcomeLabel, userListButton, backButton);
+        chatLayout.getChildren().addAll(welcomeLabel, userListButton, groupListButton, backButton);
     
         Scene chatScene = new Scene(chatLayout, 400, 300);
         primaryStage.setScene(chatScene);
         primaryStage.show();
     }
+
+    public void showPrivateChatWindow(String recipient) {
+        VBox chatLayout = new VBox(10);
+        chatLayout.setPadding(new Insets(10));
     
+        Label title = new Label("Chat com " + recipient);
+        TextArea chatArea = new TextArea();
+        chatArea.setEditable(false); // Não permite editar o histórico de mensagens
+    
+        // Carrega o histórico de mensagens
+        try {
+            List<MessageInfo> history = server.getMessageHistory(username, recipient);
+            for (MessageInfo message : history) {
+                chatArea.appendText(message + "\n");
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    
+        TextField messageField = new TextField();
+        Button sendButton = new Button("Send");
+    
+        sendButton.setOnAction(e -> {
+            String message = messageField.getText();
+            if (!message.isEmpty()) {
+                try {
+                    server.sendMessage(username, recipient, message); // Envia a mensagem para o servidor
+                    chatArea.appendText("You: " + message + "\n"); // Adiciona na área de chat localmente
+                    messageField.clear();
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+    
+        Button backButton = new Button("Back");
+        backButton.setOnAction(e -> showUserList()); // Retorna para a lista de usuários
+    
+        chatLayout.getChildren().addAll(title, chatArea, messageField, sendButton, backButton);
+    
+        Scene chatScene = new Scene(chatLayout, 400, 400);
+        primaryStage.setScene(chatScene);
+        primaryStage.show();
+    }
+    
+        
+
+    // Exibe mensagens recebidas na janela apropriada
+    public void displayReceivedMessage(String sender, String message) {
+        TextArea chatArea = privateChatWindows.get(sender);
+
+        if (chatArea != null) {
+            // Atualiza o TextArea da janela de chat com o remetente
+            chatArea.appendText(sender + ": " + message + "\n");
+        } else {
+            // Opcional: Notificação ou log caso não haja janela aberta
+            System.out.println("Nova mensagem de " + sender + ": " + message);
+        }
+    }
+    
+    public void showNotification(String sender, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Nova mensagem recebida");
+        alert.setHeaderText("Mensagem de " + sender);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+    
+    public void showGroupList() {
+        VBox groupListLayout = new VBox(10);
+        groupListLayout.setPadding(new Insets(10));
+    
+        try {
+            List<GroupInfo> groups = server.listGroups();
+            Label title = new Label("Lista de Grupos Disponíveis:");
+            ListView<String> groupView = new ListView<>();
+            Button createGroupButton = new Button("Criar Grupo");
+            Button joinButton = new Button("Solicitar Entrada");
+            Button backButton = new Button("Back");
+            TextField groupNameField = new TextField();
+            groupNameField.setPromptText("Nome do Grupo");
+            
+            for (GroupInfo group : groups) {
+                String groupInfo = group.getName() + " - " + group.getDescription();
+                if (group.getOwner().equals(username)) {
+                    groupInfo += " (Você é o dono)";
+                } else if (group.getMembers().contains(username)) {
+                    groupInfo += " (Você já é membro)";
+                } else {
+                    groupView.getItems().add(groupInfo);
+                }
+            }
+            
+            joinButton.setOnAction(e -> {
+                String groupName = groupNameField.getText();
+                if (!groupName.isEmpty()) {
+                    try {
+                        if (server.requestJoinGroup(groupName, username)) {
+                            Alert alert = new Alert(Alert.AlertType.INFORMATION, "Solicitação enviada.", ButtonType.OK);
+                            alert.showAndWait();
+                        } else {
+                            Alert alert = new Alert(Alert.AlertType.ERROR, "Não foi possível solicitar entrada.", ButtonType.OK);
+                            alert.showAndWait();
+                        }
+                    } catch (RemoteException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            });
+            
+            backButton.setOnAction(e -> showChatWindow());
+            
+            createGroupButton.setOnAction(e -> showCreateGroupScreen());
+    
+            groupListLayout.getChildren().addAll(title, groupView, groupNameField, joinButton, createGroupButton, backButton);
+            Scene groupListScene = new Scene(groupListLayout, 400, 300);
+            primaryStage.setScene(groupListScene);
+            primaryStage.show();
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public void showCreateGroupScreen() {
+        VBox createGroupLayout = new VBox(10);
+        createGroupLayout.setPadding(new Insets(10));
+        
+        Label titleLabel = new Label("Criar um Novo Grupo");
+        TextField groupNameField = new TextField();
+        groupNameField.setPromptText("Nome do Grupo");
+        
+        TextField groupDescriptionField = new TextField();
+        groupDescriptionField.setPromptText("Descrição do Grupo");
+        
+        Button createButton = new Button("Criar");
+        Button backButton = new Button("Voltar");
+        
+        Label statusLabel = new Label();
+        
+        createButton.setOnAction(e -> {
+            String groupName = groupNameField.getText().trim();
+            String groupDescription = groupDescriptionField.getText().trim();
+            
+            if (groupName.isEmpty() || groupDescription.isEmpty()) {
+                statusLabel.setText("Por favor, preencha todos os campos.");
+            } else {
+                try {
+                    boolean success = server.createGroup(groupName, groupDescription, username);
+                    if (success) {
+                        statusLabel.setText("Grupo criado com sucesso!");
+                    } else {
+                        statusLabel.setText("Não foi possível criar o grupo. Nome já em uso?");
+                    }
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                    statusLabel.setText("Erro ao criar o grupo.");
+                }
+            }
+        });
+        
+        backButton.setOnAction(e -> showChatWindow());
+        
+        createGroupLayout.getChildren().addAll(titleLabel, groupNameField, groupDescriptionField, createButton, backButton, statusLabel);
+        
+        Scene createGroupScene = new Scene(createGroupLayout, 400, 300);
+        primaryStage.setScene(createGroupScene);
+        primaryStage.show();
+    }
+    
+
 }

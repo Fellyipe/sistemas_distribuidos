@@ -18,5 +18,12 @@ public interface IChatServer extends Remote {
     public boolean createGroup(String groupName, String description, String owner) throws RemoteException;
     public boolean requestJoinGroup(String groupName, String username) throws RemoteException;
     public boolean approveJoinRequest(String groupName, String owner, String username, boolean approve) throws RemoteException;
-    public List<GroupInfo> listGroups() throws RemoteException;
+    public List<String> listGroups() throws RemoteException;
+    void sendGroupMessage(String groupName, String sender, String message) throws RemoteException;
+    List<String> getGroupMessages(String groupName) throws RemoteException;
+    boolean leaveGroup(String groupName, String username) throws RemoteException;
+    GroupInfo getGroupInfo(String groupName) throws RemoteException;
+    public boolean removeUserFromGroup(String groupName, String userToRemove) throws RemoteException;
+    public boolean deleteGroup(String groupName) throws RemoteException;
+    public boolean changeGroupOwner(String groupName, String newOwner) throws RemoteException;
 }

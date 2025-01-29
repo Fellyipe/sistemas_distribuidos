@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -336,56 +337,70 @@ public class ChatUI {
         VBox groupListLayout = new VBox(10);
         groupListLayout.setPadding(new Insets(10));
     
-        try {
-            List<GroupInfo> groups = server.listGroups();
-            Label title = new Label("Lista de Grupos Disponíveis:");
-            ListView<String> groupView = new ListView<>();
-            Button createGroupButton = new Button("Criar Grupo");
-            Button joinButton = new Button("Solicitar Entrada");
-            Button backButton = new Button("Back");
-            TextField groupNameField = new TextField();
-            groupNameField.setPromptText("Nome do Grupo");
-            
-            for (GroupInfo group : groups) {
-                String groupInfo = group.getName() + " - " + group.getDescription();
-                if (group.getOwner().equals(username)) {
-                    groupInfo += " (Você é o dono)";
-                } else if (group.getMembers().contains(username)) {
-                    groupInfo += " (Você já é membro)";
-                } else {
-                    groupView.getItems().add(groupInfo);
-                }
-            }
-            
-            joinButton.setOnAction(e -> {
-                String groupName = groupNameField.getText();
-                if (!groupName.isEmpty()) {
-                    try {
-                        if (server.requestJoinGroup(groupName, username)) {
-                            Alert alert = new Alert(Alert.AlertType.INFORMATION, "Solicitação enviada.", ButtonType.OK);
-                            alert.showAndWait();
-                        } else {
-                            Alert alert = new Alert(Alert.AlertType.ERROR, "Não foi possível solicitar entrada.", ButtonType.OK);
-                            alert.showAndWait();
-                        }
-                    } catch (RemoteException ex) {
-                        ex.printStackTrace();
-                    }
-                }
-            });
-            
-            backButton.setOnAction(e -> showChatWindow());
-            
-            createGroupButton.setOnAction(e -> showCreateGroupScreen());
+        Label titleLabel = new Label("Lista de Grupos Disponíveis:");
+        ListView<String> groupListView = new ListView<>();
+        Button joinGroupButton = new Button("Solicitar entrada");
+        joinGroupButton.setDisable(true); // Desativado inicialmente
+        Button enterGroupButton = new Button("Entrar no Grupo");
+        enterGroupButton.setDisable(true); // Desativado inicialmente
+        Button createGroupButton = new Button("Criar Grupo");
+        Button backButton = new Button("Voltar");
     
-            groupListLayout.getChildren().addAll(title, groupView, groupNameField, joinButton, createGroupButton, backButton);
-            Scene groupListScene = new Scene(groupListLayout, 400, 300);
-            primaryStage.setScene(groupListScene);
-            primaryStage.show();
+        try {
+            List<String> groups = server.listGroups();
+            groupListView.getItems().addAll(groups);
         } catch (RemoteException e) {
             e.printStackTrace();
         }
+    
+        // Habilitar botão de entrar se o usuário for membro do grupo
+        groupListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null) {
+                try {
+                    GroupInfo group = server.getGroupInfo(newValue);
+                    joinGroupButton.setDisable(group == null || (group.isMember(username)));
+                    enterGroupButton.setDisable(group == null || !(group.isMember(username)));
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    
+        joinGroupButton.setOnAction(e -> {
+            String selectedGroup = groupListView.getSelectionModel().getSelectedItem();
+            if (selectedGroup != null) {
+                try {
+                    if (server.requestJoinGroup(selectedGroup, username)) {
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Solicitação enviada.", ButtonType.OK);
+                        alert.showAndWait();
+                    } else {
+                        Alert alert = new Alert(Alert.AlertType.ERROR, "Não foi possível solicitar entrada.", ButtonType.OK);
+                        alert.showAndWait();
+                    }
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+    
+        enterGroupButton.setOnAction(e -> {
+            String selectedGroup = groupListView.getSelectionModel().getSelectedItem();
+            if (selectedGroup != null) {
+                showGroupChatWindow(selectedGroup);
+            }
+        });
+
+        createGroupButton.setOnAction(e -> showCreateGroupScreen());
+    
+        backButton.setOnAction(e -> showChatWindow());
+    
+        groupListLayout.getChildren().addAll(titleLabel, groupListView, joinGroupButton, enterGroupButton, createGroupButton, backButton);
+    
+        Scene groupListScene = new Scene(groupListLayout, 400, 300);
+        primaryStage.setScene(groupListScene);
+        primaryStage.show();
     }
+    
     
     public void showCreateGroupScreen() {
         VBox createGroupLayout = new VBox(10);
@@ -433,5 +448,240 @@ public class ChatUI {
         primaryStage.show();
     }
     
+    public void showGroupChatWindow(String groupName) {
+        VBox groupChatLayout = new VBox(10);
+        groupChatLayout.setPadding(new Insets(10));
+    
+        Label titleLabel = new Label("Grupo: " + groupName);
+        titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
+    
+        ListView<String> messageListView = new ListView<>();
+        TextField messageField = new TextField();
+        messageField.setPromptText("Digite sua mensagem...");
+    
+        Button sendMessageButton = new Button("Enviar");
+        Button leaveGroupButton = new Button("Sair do Grupo");
+        Button manageRequestsButton = new Button("Gerenciar Solicitações");
+        manageRequestsButton.setVisible(false);
+        Button manageMembersButton = new Button("Gerenciar Membros");
+        manageMembersButton.setVisible(false);
+        Button backButton = new Button("Voltar");
+    
+    
+        try {
+            List<String> messages = server.getGroupMessages(groupName);
+            messageListView.getItems().addAll(messages);
+            
+            // Verifica se o usuário é dono do grupo para mostrar botão de gerenciar
+            GroupInfo group = server.getGroupInfo(groupName);
+            if (group != null && group.getOwner().equals(username)) {
+                manageRequestsButton.setVisible(true);
+                manageMembersButton.setVisible(true);
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    
+        sendMessageButton.setOnAction(e -> {
+            String message = messageField.getText().trim();
+            if (!message.isEmpty()) {
+                try {
+                    server.sendGroupMessage(groupName, username, message);
+                    messageListView.getItems().add(username + ": " + message);
+                    messageField.clear();
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+    
+        leaveGroupButton.setOnAction(e -> {
+            try {
+                boolean success;
+                GroupInfo group = server.getGroupInfo(groupName);
+                if (group != null && group.getOwner().equals(username)) {
+                    handleGroupOwnerExit(groupName);
+                    success = true;
+                } else {
+                    success = server.leaveGroup(groupName, username);
+                }
+                if (success) {
+                    showGroupList();
+                } else {
+                    System.out.println("Erro ao sair do grupo.");
+                }
+            } catch (RemoteException ex) {
+                ex.printStackTrace();
+            }
+        });
+    
+        manageRequestsButton.setOnAction(e -> showGroupRequests(groupName)); // Chama a tela de gerenciamento
+    
+        manageMembersButton.setOnAction(e -> showManageMembersScreen(groupName));
 
+        backButton.setOnAction(e -> showGroupList());
+    
+        groupChatLayout.getChildren().addAll(titleLabel, messageListView, messageField, sendMessageButton, leaveGroupButton, manageRequestsButton, manageMembersButton, backButton);
+    
+        Scene groupChatScene = new Scene(groupChatLayout, 500, 400);
+        primaryStage.setScene(groupChatScene);
+        primaryStage.show();
+    }
+    
+    public void showGroupRequests(String groupName) {
+        VBox requestLayout = new VBox(10);
+        requestLayout.setPadding(new Insets(10));
+    
+        Label titleLabel = new Label("Solicitações Pendentes - " + groupName);
+        ListView<String> requestListView = new ListView<>();
+        Button approveButton = new Button("Aprovar");
+        approveButton.setDisable(true); // Desativado inicialmente
+        Button rejectButton = new Button("Rejeitar");
+        rejectButton.setDisable(true); // Desativado inicialmente
+        Button backButton = new Button("Voltar");
+    
+        try {
+            GroupInfo group = server.getGroupInfo(groupName);
+            if (group != null && group.getOwner().equals(username)) {
+                requestListView.getItems().addAll(group.getPendingRequests());
+            } else {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Você não é o dono deste grupo.", ButtonType.OK);
+                alert.showAndWait();
+                return;
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+
+        requestListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null) {
+                approveButton.setDisable(false);
+                rejectButton.setDisable(false);
+            }
+        });
+    
+        approveButton.setOnAction(e -> {
+            String selectedUser = requestListView.getSelectionModel().getSelectedItem();
+            if (selectedUser != null) {
+                try {
+                    if (server.approveJoinRequest(groupName, username, selectedUser, true)) {
+                        requestListView.getItems().remove(selectedUser);
+                    }
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+    
+        rejectButton.setOnAction(e -> {
+            String selectedUser = requestListView.getSelectionModel().getSelectedItem();
+            if (selectedUser != null) {
+                try {
+                    if (server.approveJoinRequest(groupName, username, selectedUser, false)) {
+                        requestListView.getItems().remove(selectedUser);
+                    }
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+    
+        backButton.setOnAction(e -> showGroupChatWindow(groupName));
+    
+        requestLayout.getChildren().addAll(titleLabel, requestListView, approveButton, rejectButton, backButton);
+    
+        Scene requestScene = new Scene(requestLayout, 400, 300);
+        primaryStage.setScene(requestScene);
+        primaryStage.show();
+    }
+    
+    public void showManageMembersScreen(String groupName) {
+        VBox manageMembersLayout = new VBox(10);
+        manageMembersLayout.setPadding(new Insets(10));
+    
+        Label titleLabel = new Label("Gerenciar Membros - " + groupName);
+        ListView<String> memberListView = new ListView<>();
+        Button removeMemberButton = new Button("Expulsar Membro");
+        removeMemberButton.setDisable(true);
+        Button backButton = new Button("Voltar");
+    
+        try {
+            GroupInfo group = server.getGroupInfo(groupName);
+            if (group != null && group.getOwner().equals(username)) {
+                memberListView.getItems().addAll(group.getMembers());
+            } else {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Você não é o dono deste grupo.", ButtonType.OK);
+                alert.showAndWait();
+                return;
+            }
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    
+        memberListView.getSelectionModel().selectedItemProperty().addListener((obs, oldValue, newValue) -> {
+            if (newValue != null) {
+                removeMemberButton.setDisable(false);
+            }
+        });
+    
+        removeMemberButton.setOnAction(e -> {
+            String selectedUser = memberListView.getSelectionModel().getSelectedItem();
+            if (selectedUser != null) {
+                try {
+                    if (server.removeUserFromGroup(groupName, selectedUser)) {
+                        memberListView.getItems().remove(selectedUser);
+                    }
+                } catch (RemoteException ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
+    
+        backButton.setOnAction(e -> showGroupChatWindow(groupName));
+    
+        manageMembersLayout.getChildren().addAll(titleLabel, memberListView, removeMemberButton, backButton);
+    
+        Scene manageMembersScene = new Scene(manageMembersLayout, 400, 300);
+        primaryStage.setScene(manageMembersScene);
+        primaryStage.show();
+    }
+    
+    private void handleGroupOwnerExit(String groupName) {
+        GroupInfo group = null;
+        try {
+            group = server.getGroupInfo(groupName);
+            server.removeUserFromGroup(groupName, group.getOwner());
+            group = server.getGroupInfo(groupName);
+        } catch (RemoteException ex) {
+            ex.printStackTrace();
+        }
+    
+        if (group == null) return; // Se o grupo não existir, sai da função
+
+        List<String> members = new ArrayList<>(group.getMembers()); // Obtém a lista de membros
+        System.out.println(group.getMembers());
+
+        if (!members.isEmpty()) { 
+            // Se ainda houver membros, escolhemos o primeiro como novo dono
+            String newOwner = members.get(0);
+            group.setOwner(newOwner);
+            try {
+                if(server.changeGroupOwner(groupName, newOwner)) {
+                    System.out.println("Novo dono do grupoooooo " + groupName + ": " + newOwner);
+                }
+            } catch (RemoteException ex) {
+                ex.printStackTrace();
+            }
+            System.out.println("Novo dono do grupo " + groupName + ": " + newOwner);
+            System.out.println(group.getOwner());
+        } else { 
+            // Se não houver mais membros, excluímos o grupo
+            try {
+                server.deleteGroup(groupName);
+                System.out.println("Grupo " + groupName + " foi removido por não ter mais membros.");
+            } catch (RemoteException ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
 }

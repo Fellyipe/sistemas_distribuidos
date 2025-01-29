@@ -1,25 +1,26 @@
 package chat.info;
 
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class GroupInfo implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    private String name; // Nome do grupo
-    private String description; // Descrição do grupo
-    private String owner; // Criador do grupo
-    private Set<String> members; // Membros do grupo
+    private String name;
+    private String description;
+    private String owner;
+    private List<String> members;
+    private List<String> messages;
     private Set<String> pendingRequests; // Solicitações pendentes
 
     public GroupInfo(String name, String description, String owner) {
         this.name = name;
         this.description = description;
         this.owner = owner;
-        this.members = new HashSet<>();
+        this.members = new ArrayList<>();
         this.pendingRequests = new HashSet<>();
-        this.members.add(owner); // O criador do grupo é automaticamente membro
+        this.messages = new ArrayList<>();
+        members.add(owner);
     }
 
     public String getName() {
@@ -34,20 +35,36 @@ public class GroupInfo implements Serializable {
         return owner;
     }
 
-    public Set<String> getMembers() {
+    public List<String> getMembers() {
         return members;
     }
 
     public Set<String> getPendingRequests() {
         return pendingRequests;
     }
+    
+    public void setOwner(String newOwner) {
+        this.owner = newOwner;
+    }    
+
+    public void addMessage(String message) {
+        messages.add(message);
+    }
+
+    public List<String> getMessages() {
+        return messages;
+    }
+
+    public boolean removeMember(String username) {
+        return members.remove(username);
+    }
 
     public boolean addMember(String username) {
         return members.add(username);
     }
 
-    public boolean removeMember(String username) {
-        return members.remove(username);
+    public boolean isMember(String username) {
+        return members.contains(username);
     }
 
     public void addPendingRequest(String username) {

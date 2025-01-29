@@ -3,6 +3,7 @@ package chat;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import chat.info.*;
 import chat.utils.*;
@@ -141,8 +142,72 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
 
     @Override
     // Listar grupos
-    public List<GroupInfo> listGroups() throws RemoteException {
-        return new ArrayList<>(groups.values());
+    public List<String> listGroups() throws RemoteException {
+        return groups.values().stream() // Cria um stream a partir dos valores do mapa
+                 .map(GroupInfo::getName) // Mapeia cada GroupInfo para seu nome
+                 .collect(Collectors.toList()); // Coleta os resultados em uma List<String>
+    }
+
+    @Override
+    public void sendGroupMessage(String groupName, String sender, String message) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+        if (group != null) {
+            group.addMessage(sender + ": " + message);
+        }
+    }
+
+    @Override
+    public List<String> getGroupMessages(String groupName) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+        return (group != null) ? group.getMessages() : new ArrayList<>();
+    }
+
+    @Override
+    public boolean leaveGroup(String groupName, String username) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+        if (group != null) {
+            return group.removeMember(username);
+        }
+        return false;
+    }
+
+    @Override
+    public GroupInfo getGroupInfo(String groupName) throws RemoteException {
+        return groups.get(groupName);
+    }
+
+    @Override
+    public boolean removeUserFromGroup(String groupName, String userToRemove) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+        if (group != null) { // Verifica se quem chama é o dono
+            boolean removed = group.removeMember(userToRemove);
+            if (removed) {
+                System.out.println(userToRemove + " foi removido do grupo " + groupName);
+            }
+            return removed;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean deleteGroup(String groupName) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+        if (group != null) {
+            groups.remove(groupName);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean changeGroupOwner(String groupName, String newOwner) throws RemoteException {
+        GroupInfo group = groups.get(groupName);
+
+        if (group != null && group.isMember(newOwner)) {
+            group.setOwner(newOwner);
+            return true;
+        }
+        return false;
     }
 
 }

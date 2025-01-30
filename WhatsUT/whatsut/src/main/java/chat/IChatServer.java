@@ -4,6 +4,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
+import chat.info.FileInfo;
 import chat.info.GroupInfo;
 import chat.info.MessageInfo;
 
@@ -13,7 +14,7 @@ public interface IChatServer extends Remote {
     void logout(String username) throws RemoteException;
     List<String> listUsers() throws RemoteException; // Retorna todos os usuários
     List<String> listOnlineUsers() throws RemoteException; // Retorna apenas os usuários online
-    void sendMessage(String sender, String receiver, String message) throws RemoteException;
+    public void sendMessage(String sender, String recipient, String message) throws RemoteException;
     public List<MessageInfo> getMessageHistory(String user1, String user2) throws RemoteException;
     public boolean createGroup(String groupName, String description, String owner) throws RemoteException;
     public boolean requestJoinGroup(String groupName, String username) throws RemoteException;
@@ -26,4 +27,6 @@ public interface IChatServer extends Remote {
     public boolean removeUserFromGroup(String groupName, String userToRemove) throws RemoteException;
     public boolean deleteGroup(String groupName) throws RemoteException;
     public boolean changeGroupOwner(String groupName, String newOwner) throws RemoteException;
+    public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException;
+    public FileInfo receiveFile(String sender, String recipient, String fileName) throws RemoteException;
 }

@@ -4,9 +4,15 @@ import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -28,6 +34,8 @@ public class ChatUI {
     private IChatClient client;
     private Map<String, TextArea> privateChatWindows = new HashMap<>();
     private Set<String> openChats = new HashSet<>();
+    private TextArea chatArea; // Agora é um atributo da classe
+    private VBox chatMessages; // Usaremos VBox para suportar botões
 
     public ChatUI(Stage primaryStage) {
         this.primaryStage = primaryStage;
@@ -266,33 +274,105 @@ public class ChatUI {
         primaryStage.show();
     }
 
+    // public void showPrivateChatWindow(String recipient) {
+    //     VBox chatLayout = new VBox(10);
+    //     chatLayout.setPadding(new Insets(10));
+    
+    //     Label title = new Label("Chat com " + recipient);
+        
+    //     TextArea chatArea = new TextArea();
+    //     chatArea.setEditable(false); // Não permite editar o histórico de mensagens
+    
+    //     // Carrega o histórico de mensagens
+    //     try {
+    //         List<MessageInfo> history = server.getMessageHistory(username, recipient);
+    //         for (MessageInfo message : history) {
+    //             chatArea.appendText(message + "\n");
+    //         }
+    //     } catch (RemoteException e) {
+    //         e.printStackTrace();
+    //     }
+    
+    //     TextField messageField = new TextField();
+    //     Button sendButton = new Button("Enviar");
+
+    //     Button sendFileButton = new Button("📎 Enviar Arquivo");
+    //     Button receiveFileButton = new Button("Baixar Arquivo");
+    //     Button backButton = new Button("Voltar");
+    
+    //     sendButton.setOnAction(e -> {
+    //         String message = messageField.getText();
+    //         if (!message.isEmpty()) {
+    //             try {
+    //                 server.sendMessage(username, recipient, message); // Envia a mensagem para o servidor
+    //                 chatArea.appendText("You: " + message + "\n"); // Adiciona na área de chat localmente
+    //                 messageField.clear();
+    //             } catch (RemoteException ex) {
+    //                 ex.printStackTrace();
+    //             }
+    //         }
+    //     });
+
+    //     sendFileButton.setOnAction(e -> sendFileToRecipient(recipient));
+    //     receiveFileButton.setOnAction(e -> receiveFileFromSender(recipient));
+    
+    //     backButton.setOnAction(e -> showUserList()); // Retorna para a lista de usuários
+    
+    //     chatLayout.getChildren().addAll(title, chatArea, messageField, sendButton, sendFileButton, receiveFileButton, backButton);
+    
+    //     Scene chatScene = new Scene(chatLayout, 400, 400);
+    //     primaryStage.setScene(chatScene);
+    //     primaryStage.show();
+    // }
+
     public void showPrivateChatWindow(String recipient) {
         VBox chatLayout = new VBox(10);
         chatLayout.setPadding(new Insets(10));
     
         Label title = new Label("Chat com " + recipient);
-        TextArea chatArea = new TextArea();
-        chatArea.setEditable(false); // Não permite editar o histórico de mensagens
+        chatMessages = new VBox(5);
+        chatMessages.setPrefHeight(300);
+        
+        chatArea = new TextArea(); // Usa o atributo da classe
+        chatArea.setEditable(false);
     
-        // Carrega o histórico de mensagens
+        chatMessages = new VBox(10); // Suportará mensagens e botões de download
+        ScrollPane chatScroll = new ScrollPane(chatMessages);
+        chatScroll.setFitToWidth(true);
+    
+        // // Carregar histórico de mensagens
+        // try {
+        //     List<MessageInfo> history = server.getMessageHistory(username, recipient);
+        //     for (MessageInfo message : history) {
+        //         addMessageToChat("📩 " + message.getSender() + ": " + message.getMessage());
+        //     }
+        // } catch (RemoteException e) {
+        //     e.printStackTrace();
+        // }
         try {
             List<MessageInfo> history = server.getMessageHistory(username, recipient);
-            for (MessageInfo message : history) {
-                chatArea.appendText(message + "\n");
+            for (MessageInfo msg : history) {
+                if (msg.isFile()) {
+                    addFileToChat(msg.getSender(), msg.getRecipient(), msg.getFile().getFileName());
+                } else {
+                    chatMessages.getChildren().add(new Label(msg.toString()));
+                }
             }
         } catch (RemoteException e) {
             e.printStackTrace();
         }
     
         TextField messageField = new TextField();
-        Button sendButton = new Button("Send");
+        Button sendButton = new Button("Enviar");
+        Button sendFileButton = new Button("📎 Enviar Arquivo");
+        Button backButton = new Button("Voltar");
     
         sendButton.setOnAction(e -> {
             String message = messageField.getText();
             if (!message.isEmpty()) {
                 try {
-                    server.sendMessage(username, recipient, message); // Envia a mensagem para o servidor
-                    chatArea.appendText("You: " + message + "\n"); // Adiciona na área de chat localmente
+                    server.sendMessage(username, recipient, message);
+                    addMessageToChat("📩 Você: " + message);
                     messageField.clear();
                 } catch (RemoteException ex) {
                     ex.printStackTrace();
@@ -300,18 +380,18 @@ public class ChatUI {
             }
         });
     
-        Button backButton = new Button("Back");
-        backButton.setOnAction(e -> showUserList()); // Retorna para a lista de usuários
+        sendFileButton.setOnAction(e -> sendFileToRecipient(recipient));
+        backButton.setOnAction(e -> showUserList());
     
-        chatLayout.getChildren().addAll(title, chatArea, messageField, sendButton, backButton);
+        VBox inputLayout = new VBox(10, messageField, sendButton, sendFileButton, backButton);
+        chatLayout.getChildren().addAll(title, chatScroll, inputLayout);
     
-        Scene chatScene = new Scene(chatLayout, 400, 400);
+        Scene chatScene = new Scene(chatLayout, 400, 500);
         primaryStage.setScene(chatScene);
         primaryStage.show();
     }
     
-        
-
+    
     // Exibe mensagens recebidas na janela apropriada
     public void displayReceivedMessage(String sender, String message) {
         TextArea chatArea = privateChatWindows.get(sender);
@@ -400,7 +480,6 @@ public class ChatUI {
         primaryStage.setScene(groupListScene);
         primaryStage.show();
     }
-    
     
     public void showCreateGroupScreen() {
         VBox createGroupLayout = new VBox(10);
@@ -684,4 +763,158 @@ public class ChatUI {
             }
         }
     }
+
+    // public void sendFileToRecipient(String recipient) {
+    //     // Abre o gerenciador de arquivos para escolher o arquivo
+    //     FileChooser fileChooser = new FileChooser();
+    //     fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Todos os Arquivos", "*.*"));
+    //     File selectedFile = fileChooser.showOpenDialog(primaryStage);
+
+    //     if (selectedFile != null) {
+    //         try {
+    //             // Lê o arquivo como um array de bytes
+    //             byte[] fileData = Files.readAllBytes(selectedFile.toPath());
+    //             String fileName = selectedFile.getName();
+
+    //             // Cria o objeto FileInfo e envia ao servidor
+    //             FileInfo fileInfo = new FileInfo(fileName, fileData);
+    //             server.sendFile(username, recipient, fileInfo);
+
+    //             // Mensagem de sucesso no chat
+    //             System.out.print("Você enviou um arquivo: " + fileName + "\n");
+
+    //         } catch (IOException e) {
+    //             e.printStackTrace();
+    //         }
+    //     }
+    // }
+
+    public void sendFileToRecipient(String recipient) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Todos os Arquivos", "*.*"));
+        File selectedFile = fileChooser.showOpenDialog(primaryStage);
+    
+        if (selectedFile != null) {
+            try {
+                byte[] fileData = Files.readAllBytes(selectedFile.toPath());
+                String fileName = selectedFile.getName();
+    
+                FileInfo fileInfo = new FileInfo(fileName, fileData);
+                server.sendFile(username, recipient, fileInfo);
+    
+                addFileToChat(username, recipient, fileName);
+    
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+
+    // public void receiveFileFromSender(String sender) {
+    //     try {
+    //         // Solicita o arquivo do servidor
+    //         FileInfo fileInfo = server.receiveFile(sender, username);
+    
+    //         if (fileInfo != null) {
+    //             // Abre um diálogo para o usuário escolher onde salvar o arquivo
+    //             FileChooser fileChooser = new FileChooser();
+    //             fileChooser.setInitialFileName(fileInfo.getFileName());
+    
+    //             File savedFile = fileChooser.showSaveDialog(primaryStage);
+    //             if (savedFile != null) {
+    //                 // Salva os dados no local escolhido
+    //                 Files.write(savedFile.toPath(), fileInfo.getFileData());
+    //                 System.out.println("Você recebeu um arquivo: " + fileInfo.getFileName() + "\n");
+    //             }
+    //         } else {
+    //             System.out.println("Nenhum arquivo recebido.\n");
+    //         }
+    
+    //     } catch (IOException e) {
+    //         e.printStackTrace();
+    //     }
+    // }
+
+    public void receiveFileFromSender(String sender, String fileName) {
+        try {
+            FileInfo fileInfo = server.receiveFile(sender, username, fileName);
+    
+            if (fileInfo != null) {
+                FileChooser fileChooser = new FileChooser();
+                fileChooser.setInitialFileName(fileInfo.getFileName());
+    
+                File savedFile = fileChooser.showSaveDialog(primaryStage);
+                if (savedFile != null) {
+                    Files.write(savedFile.toPath(), fileInfo.getFileData());
+                    addMessageToChat("📥 Arquivo " + fileInfo.getFileName() + " baixado com sucesso!");
+                }
+            } else {
+                addMessageToChat("❌ Nenhum arquivo disponível para baixar.");
+            }
+    
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    
+
+    private void addMessageToChat(String message) {
+        Label messageLabel = new Label(message);
+        chatMessages.getChildren().add(messageLabel); // Agora adiciona corretamente
+    }
+    
+    private void addFileToChat(String sender, String recipient, String fileName) {
+        HBox fileBox = new HBox(10);
+        Label fileLabel = new Label();
+        fileLabel.setText((sender.equals(username)) ? "Você enviou: " + fileName : sender + " ennviou: " + fileName);
+
+
+        Button downloadButton = new Button("Baixar");
+        System.out.println("Addfile - sender: " + sender + " - recipient: " + recipient);
+
+        downloadButton.setOnAction(e -> {
+            try {
+                FileInfo file = server.receiveFile(sender, recipient, fileName);
+                if (file != null) {
+                    FileChooser fileChooser = new FileChooser();
+                    fileChooser.setInitialFileName(file.getFileName());
+                    File saveFile = fileChooser.showSaveDialog(primaryStage);
+    
+                    if (saveFile != null) {
+                        Files.write(saveFile.toPath(), file.getFileData());
+                        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Arquivo salvo com sucesso!", ButtonType.OK);
+                        alert.showAndWait();
+                    }
+                } else {
+                    Alert alert = new Alert(Alert.AlertType.ERROR, "Arquivo não encontrado.", ButtonType.OK);
+                    alert.showAndWait();
+                }
+            } catch (IOException ex) {
+                ex.printStackTrace();
+            }
+        });
+    
+        fileBox.getChildren().addAll(fileLabel, downloadButton);
+        chatMessages.getChildren().add(fileBox);
+    }
+    
+    
+    private void saveFileLocally(FileInfo file) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setInitialFileName(file.getFileName());
+        File selectedFile = fileChooser.showSaveDialog(primaryStage);
+        
+        if (selectedFile != null) {
+            try (FileOutputStream fos = new FileOutputStream(selectedFile)) {
+                fos.write(file.getFileData());
+                System.out.println("📂 Arquivo salvo: " + selectedFile.getAbsolutePath());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+
 }

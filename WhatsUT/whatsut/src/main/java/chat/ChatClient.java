@@ -1,5 +1,8 @@
 package chat;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
@@ -8,7 +11,9 @@ import java.util.List;
 import java.util.Map;
 
 import chat.UI.ChatUI;
+import chat.info.FileInfo;
 import javafx.application.Platform;
+import javafx.stage.FileChooser;
 
 public class ChatClient extends UnicastRemoteObject implements IChatClient {
     private final String username;
@@ -80,5 +85,4 @@ public class ChatClient extends UnicastRemoteObject implements IChatClient {
             }
         });
     }
-
 }

@@ -3,6 +3,7 @@ package chat;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import chat.info.*;
@@ -11,9 +12,10 @@ import chat.utils.*;
 public class ChatServer extends UnicastRemoteObject implements IChatServer {
     private final Map<String, UserInfo> users = new HashMap<>(); // username -> UserInfo
     private final Map<String, IChatClient> onlineUsers = new HashMap<>(); // username -> client instance
-    private final Map<String, Map<String, List<MessageInfo>>> messageHistory = new HashMap<>();
+    //private final Map<String, Map<String, List<MessageInfo>>> messageHistory = new HashMap<>();
     private final Map<String, GroupInfo> groups = new HashMap<>(); // Mapeia o nome do grupo para o objeto Group
-
+    private Map<String, FileInfo> storedFiles = new ConcurrentHashMap<>();
+    private Map<String, List<MessageInfo>> messageHistory = new ConcurrentHashMap<>();
 
     public ChatServer() throws RemoteException {
         super();
@@ -63,35 +65,64 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
         return new ArrayList<>(onlineUsers.keySet());
     }
 
-    @Override
-    public void sendMessage(String sender, String receiver, String message) throws RemoteException {
+    // @Override
+    // public void sendMessage(String sender, String receiver, String message) throws RemoteException {
         
-        // Armazena a mensagem na estrutura de histórico
-        messageHistory
-            .computeIfAbsent(sender, k -> new HashMap<>())
-            .computeIfAbsent(receiver, k -> new ArrayList<>())
-            .add(new MessageInfo(sender, message));
+    //     // Armazena a mensagem na estrutura de histórico
+    //     messageHistory
+    //         .computeIfAbsent(sender, k -> new HashMap<>())
+    //         .computeIfAbsent(receiver, k -> new ArrayList<>())
+    //         .add(new MessageInfo(sender, message));
 
-        messageHistory
-            .computeIfAbsent(receiver, k -> new HashMap<>())
-            .computeIfAbsent(sender, k -> new ArrayList<>())
-            .add(new MessageInfo(sender, message));
+    //     messageHistory
+    //         .computeIfAbsent(receiver, k -> new HashMap<>())
+    //         .computeIfAbsent(sender, k -> new ArrayList<>())
+    //         .add(new MessageInfo(sender, message));
         
-        IChatClient client = onlineUsers.get(receiver);
-        if (client != null) {
-            client.receiveMessage(sender, message);
-        } else {
-            System.out.println("User " + receiver + " not found or not online.");
-        }
+    //     IChatClient client = onlineUsers.get(receiver);
+    //     if (client != null) {
+    //         client.receiveMessage(sender, message);
+    //     } else {
+    //         System.out.println("User " + receiver + " not found or not online.");
+    //     }
+    // }
+
+    // // Recupera o histórico de mensagens entre dois usuários
+    // @Override
+    // public List<MessageInfo> getMessageHistory(String user1, String user2) {
+    //     if (messageHistory.containsKey(user1) && messageHistory.get(user1).containsKey(user2)) {
+    //         return messageHistory.get(user1).get(user2);
+    //     }
+    //     return new ArrayList<>(); // Retorna lista vazia se não houver histórico
+    // }
+
+    @Override
+    public void sendMessage(String sender, String recipient, String message) throws RemoteException {
+        MessageInfo msg = new MessageInfo(sender, recipient, message);
+        storeMessage(sender, recipient, msg);
     }
 
-    // Recupera o histórico de mensagens entre dois usuários
     @Override
-    public List<MessageInfo> getMessageHistory(String user1, String user2) {
-        if (messageHistory.containsKey(user1) && messageHistory.get(user1).containsKey(user2)) {
-            return messageHistory.get(user1).get(user2);
-        }
-        return new ArrayList<>(); // Retorna lista vazia se não houver histórico
+    public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
+        MessageInfo msg = new MessageInfo(sender, recipient, file);
+        storeMessage(sender, recipient, msg);
+    }
+
+    private void storeMessage(String sender, String recipient, MessageInfo msg) {
+        String key = getChatKey(sender, recipient);
+        messageHistory.putIfAbsent(key, new ArrayList<>());
+        messageHistory.get(key).add(msg);
+    }
+
+    @Override
+    public List<MessageInfo> getMessageHistory(String user1, String user2) throws RemoteException {
+        return messageHistory.getOrDefault(getChatKey(user1, user2), new ArrayList<>());
+    }
+
+    private String getChatKey(String user1, String user2) {
+        List<String> users = Arrays.asList(user1, user2);
+        Collections.sort(users); // Garante sempre a mesma ordem
+        return users.get(0) + "_" + users.get(1);
     }
 
     @Override
@@ -208,6 +239,36 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
             return true;
         }
         return false;
+    }
+
+    // @Override
+    // public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
+    //     String fileKey = sender + "_" + recipient + "_" + file.getFileName(); // Nome único
+    //     storedFiles.put(fileKey, file);
+    //     System.out.println("📁 Arquivo recebido: " + file.getFileName() + " de " + sender + " para " + recipient);
+    // }
+
+    @Override
+    public FileInfo receiveFile(String sender, String recipient, String fileName) throws RemoteException {
+        String key = getChatKey(sender, recipient);
+        System.out.println(key);
+
+        List<MessageInfo> messages = messageHistory.getOrDefault(key, new ArrayList<>());
+
+        for (Map.Entry<String, List<MessageInfo>> entry : messageHistory.entrySet()) {
+            System.out.println("Key: " + entry.getKey());
+        }
+
+        System.out.println(fileName);
+        System.out.println(messages.size());
+        for (MessageInfo msg : messages) {
+            System.out.println(msg.isFile() + "Dentro");
+            System.out.println(msg.getFile().getFileName());
+            if (msg.isFile() && msg.getFile().getFileName().equals(fileName)) {
+                return msg.getFile(); // Retorna o arquivo encontrado
+            }
+        }
+        return null; // Retorna null se o arquivo não existir no histórico
     }
 
 }

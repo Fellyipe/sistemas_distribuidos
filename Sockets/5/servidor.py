@@ -1,39 +1,34 @@
 import socket
 import threading
 
-store_data = {}
-lock = threading.Lock()
-
-def handle_branch(client_socket, branch_id):
-    while True:
-        try:
-            data = client_socket.recv(1024).decode("utf-8")
+def handle_client(conn, addr):
+    print(f"Conexão de {addr} estabelecida.")
+    try:
+        while True:
+            data = conn.recv(1024)
             if not data:
                 break
-            with lock:
-                if branch_id not in store_data:
-                    store_data[branch_id] = []
-                store_data[branch_id].append(data)
-            print(f"[FILIAL {branch_id}] {data}")
-        except Exception as e:
-            print(f"[ERRO FILIAL {branch_id}] {e}")
-            break
-
-    client_socket.close()
-    print(f"[DESCONECTADO] Filial {branch_id} desconectada.")
+            print(f"Dados recebidos de {addr}: {data.decode()}")
+    finally:
+        print(f"Conexão com {addr} encerrada.")
+        conn.close()
 
 def start_server():
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(("0.0.0.0", 12345))
-    server.listen(5)
-    print("[SERVIDOR INICIADO] Aguardando filiais...")
+    host = 'localhost'
+    port = 5000
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind((host, port))
+    server_socket.listen()
+    print(f"Servidor ouvindo em {host}:{port}")
 
-    branch_id = 1
-    while True:
-        client_socket, client_address = server.accept()
-        print(f"[CONEXÃO] Filial {branch_id} conectada: {client_address}")
-        threading.Thread(target=handle_branch, args=(client_socket, branch_id)).start()
-        branch_id += 1
+    try:
+        while True:
+            conn, addr = server_socket.accept()
+            thread = threading.Thread(target=handle_client, args=(conn, addr))
+            thread.start()
+            print(f"Ativo conexões de {threading.activeCount() - 1}")
+    finally:
+        server_socket.close()
 
 if __name__ == "__main__":
     start_server()

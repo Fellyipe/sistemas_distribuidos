@@ -36,6 +36,7 @@ public class ChatClient extends UnicastRemoteObject implements IChatClient {
     @Override
     public void logout() throws RemoteException {
         server.logout(username);
+        server.unregisterClient(username);
     }
 
     @Override
@@ -74,8 +75,6 @@ public class ChatClient extends UnicastRemoteObject implements IChatClient {
                 if (!ui.isChatWindowOpen(sender)) {
                     // Adiciona a mensagem à lista de não lidas
                     unreadMessages.computeIfAbsent(sender, k -> new ArrayList<>()).add(message);
-                    // Notifica o usuário sobre a nova mensagem
-                    ui.showNotification(sender, message);
                 } else {
                     // Exibe a mensagem diretamente na janela de chat aberta
                     ui.displayReceivedMessage(sender, message);
@@ -85,4 +84,41 @@ public class ChatClient extends UnicastRemoteObject implements IChatClient {
             }
         });
     }
+
+    @Override
+    public void notifyNewMessage(String senderOrGroup) throws RemoteException {
+        System.out.println("📨 Nova mensagem de " + senderOrGroup + ". Atualizando chat...");
+
+        boolean isGroup = server.getGroupInfo(senderOrGroup) != null; // Verifica se é um grupo
+        ui.updateChat(senderOrGroup, isGroup);
+    }
+
+    @Override
+    public void notifyGroupJoinApproval(String groupName, boolean approved) throws RemoteException {
+        String msg = approved ? "Sua solicitação para entrar no grupo '" + groupName + "' foi aprovada!"
+                              : "Sua solicitação para entrar no grupo '" + groupName + "' foi rejeitada.";
+        System.out.println(msg);
+        String content = "joinapproval";
+        ui.showNotification(msg, content, "");
+    }
+
+    @Override
+    public void notifyGroupRemoval(String groupName) throws RemoteException {
+        String msg = "Você foi removido do grupo '" + groupName + "'.";
+        System.out.println(msg);
+        String content = "groupremoval";
+        ui.showNotification(msg, content, groupName);
+        // Você pode também atualizar a UI para remover o grupo da lista de chats, se desejar.
+    }
+
+    @Override
+    public void notifyNewGroupOwner(String groupName) throws RemoteException {
+        String msg = "Você agora é o novo dono do grupo '" + groupName + "'.";
+        System.out.println(msg);
+        String content = "newowner";
+        ui.showNotification(msg, content, groupName);
+        // Se necessário, atualize a interface para exibir as opções de administração.
+    }
+
+
 }

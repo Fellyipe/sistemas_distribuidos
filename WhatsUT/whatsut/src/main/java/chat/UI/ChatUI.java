@@ -1,5 +1,6 @@
 package chat.UI;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -21,7 +22,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import chat.*;
 import chat.info.*;
@@ -36,10 +39,14 @@ public class ChatUI {
     private Set<String> openChats = new HashSet<>();
     private TextArea chatArea; // Agora é um atributo da classe
     private VBox chatMessages; // Usaremos VBox para suportar botões
+    private String currentWindow = null;
+    private String currentRecipitent = null;
+    private String currentGroup = null;
+
 
     public ChatUI(Stage primaryStage) {
         this.primaryStage = primaryStage;
-
+        chatMessages = new VBox(10);
         try {
             // Inicializa o registro e o servidor RMI
             this.registry = LocateRegistry.getRegistry("localhost", 1099);
@@ -73,6 +80,7 @@ public class ChatUI {
     
     // Tela de Início: Exibe opções de Login ou Registro
     public void showStartScreen() {
+        currentWindow = "Start";
         VBox startLayout = new VBox(10);
         startLayout.setPadding(new Insets(10));
 
@@ -94,6 +102,8 @@ public class ChatUI {
 
     // Tela de Login
     public void showLoginScreen() {
+        currentWindow = "Login";
+        
         VBox loginLayout = new VBox(10);
         loginLayout.setPadding(new Insets(10));
 
@@ -119,6 +129,7 @@ public class ChatUI {
                 if (client.login(password)) {
                     statusLabel.setText("Login successful!");
                     this.username = username;
+                    server.registerClient(username, client); 
                     showChatWindow();  // Exibe a janela de chat após login bem-sucedido
                 } else {
                     statusLabel.setText("Invalid credentials. Try again.");
@@ -140,6 +151,8 @@ public class ChatUI {
 
     // Tela de Registro
     public void showRegisterScreen() {
+        currentWindow = "Register";
+        
         VBox registerLayout = new VBox(10);
         registerLayout.setPadding(new Insets(10));
 
@@ -190,6 +203,8 @@ public class ChatUI {
 
     // Tela de Lista de Usuários
     public void showUserList() {
+        currentWindow = "User List";
+        
         try {
             // Obtém as listas do servidor
             List<String> allUsers = server.listUsers();
@@ -246,6 +261,8 @@ public class ChatUI {
 
     // Janela do Chat (após o login)
     public void showChatWindow() {
+        currentWindow = "Main";
+        
         VBox chatLayout = new VBox(10);
         chatLayout.setPadding(new Insets(10));
     
@@ -274,58 +291,10 @@ public class ChatUI {
         primaryStage.show();
     }
 
-    // public void showPrivateChatWindow(String recipient) {
-    //     VBox chatLayout = new VBox(10);
-    //     chatLayout.setPadding(new Insets(10));
-    
-    //     Label title = new Label("Chat com " + recipient);
-        
-    //     TextArea chatArea = new TextArea();
-    //     chatArea.setEditable(false); // Não permite editar o histórico de mensagens
-    
-    //     // Carrega o histórico de mensagens
-    //     try {
-    //         List<MessageInfo> history = server.getMessageHistory(username, recipient);
-    //         for (MessageInfo message : history) {
-    //             chatArea.appendText(message + "\n");
-    //         }
-    //     } catch (RemoteException e) {
-    //         e.printStackTrace();
-    //     }
-    
-    //     TextField messageField = new TextField();
-    //     Button sendButton = new Button("Enviar");
-
-    //     Button sendFileButton = new Button("📎 Enviar Arquivo");
-    //     Button receiveFileButton = new Button("Baixar Arquivo");
-    //     Button backButton = new Button("Voltar");
-    
-    //     sendButton.setOnAction(e -> {
-    //         String message = messageField.getText();
-    //         if (!message.isEmpty()) {
-    //             try {
-    //                 server.sendMessage(username, recipient, message); // Envia a mensagem para o servidor
-    //                 chatArea.appendText("You: " + message + "\n"); // Adiciona na área de chat localmente
-    //                 messageField.clear();
-    //             } catch (RemoteException ex) {
-    //                 ex.printStackTrace();
-    //             }
-    //         }
-    //     });
-
-    //     sendFileButton.setOnAction(e -> sendFileToRecipient(recipient));
-    //     receiveFileButton.setOnAction(e -> receiveFileFromSender(recipient));
-    
-    //     backButton.setOnAction(e -> showUserList()); // Retorna para a lista de usuários
-    
-    //     chatLayout.getChildren().addAll(title, chatArea, messageField, sendButton, sendFileButton, receiveFileButton, backButton);
-    
-    //     Scene chatScene = new Scene(chatLayout, 400, 400);
-    //     primaryStage.setScene(chatScene);
-    //     primaryStage.show();
-    // }
-
     public void showPrivateChatWindow(String recipient) {
+        currentWindow = "Private Chat";
+        currentRecipitent = recipient;
+        
         VBox chatLayout = new VBox(10);
         chatLayout.setPadding(new Insets(10));
     
@@ -340,15 +309,6 @@ public class ChatUI {
         ScrollPane chatScroll = new ScrollPane(chatMessages);
         chatScroll.setFitToWidth(true);
     
-        // // Carregar histórico de mensagens
-        // try {
-        //     List<MessageInfo> history = server.getMessageHistory(username, recipient);
-        //     for (MessageInfo message : history) {
-        //         addMessageToChat("📩 " + message.getSender() + ": " + message.getMessage());
-        //     }
-        // } catch (RemoteException e) {
-        //     e.printStackTrace();
-        // }
         try {
             List<MessageInfo> history = server.getMessageHistory(username, recipient);
             for (MessageInfo msg : history) {
@@ -372,7 +332,8 @@ public class ChatUI {
             if (!message.isEmpty()) {
                 try {
                     server.sendMessage(username, recipient, message);
-                    addMessageToChat("📩 Você: " + message);
+                    // addMessageToChat("📩 Você: " + message);
+                    updateChat(recipient, false); // ADICIONEI ISSO
                     messageField.clear();
                 } catch (RemoteException ex) {
                     ex.printStackTrace();
@@ -405,15 +366,9 @@ public class ChatUI {
         }
     }
     
-    public void showNotification(String sender, String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Nova mensagem recebida");
-        alert.setHeaderText("Mensagem de " + sender);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-    
     public void showGroupList() {
+        currentWindow = "Group List";
+        
         VBox groupListLayout = new VBox(10);
         groupListLayout.setPadding(new Insets(10));
     
@@ -482,6 +437,8 @@ public class ChatUI {
     }
     
     public void showCreateGroupScreen() {
+        currentWindow = "Create Group";
+
         VBox createGroupLayout = new VBox(10);
         createGroupLayout.setPadding(new Insets(10));
         
@@ -528,12 +485,22 @@ public class ChatUI {
     }
     
     public void showGroupChatWindow(String groupName) {
+        currentWindow = "Group Chat";
+        currentGroup = groupName;
+        
         VBox groupChatLayout = new VBox(10);
         groupChatLayout.setPadding(new Insets(10));
     
         Label titleLabel = new Label("Grupo: " + groupName);
         titleLabel.setStyle("-fx-font-size: 18px; -fx-font-weight: bold;");
     
+        chatMessages = new VBox(10); // ADICIONEI ISSO
+        chatMessages.setPrefHeight(300); // ADICIONEI ISSO
+        chatArea = new TextArea(); // ADICIONEI ISSO
+        chatArea.setEditable(false); // ADICIONEI ISSO
+        ScrollPane chatScroll = new ScrollPane(chatMessages); // ADICIONEI ISSO
+        chatScroll.setFitToWidth(true); // ADICIONEI ISSO
+
         ListView<String> messageListView = new ListView<>();
         TextField messageField = new TextField();
         messageField.setPromptText("Digite sua mensagem...");
@@ -549,7 +516,11 @@ public class ChatUI {
     
         try {
             List<String> messages = server.getGroupMessages(groupName);
-            messageListView.getItems().addAll(messages);
+            for (String message : messages) { //ADICIONEI ISSO
+                chatMessages.getChildren().add(new Label(message)); // ADICIONEI ISSO
+            }
+        
+            // messageListView.getItems().addAll(messages);
             
             // Verifica se o usuário é dono do grupo para mostrar botão de gerenciar
             GroupInfo group = server.getGroupInfo(groupName);
@@ -566,7 +537,8 @@ public class ChatUI {
             if (!message.isEmpty()) {
                 try {
                     server.sendGroupMessage(groupName, username, message);
-                    messageListView.getItems().add(username + ": " + message);
+                    // messageListView.getItems().add(username + ": " + message);
+                    updateChat(groupName, true); // ADICIONEI ISSO
                     messageField.clear();
                 } catch (RemoteException ex) {
                     ex.printStackTrace();
@@ -575,19 +547,34 @@ public class ChatUI {
         });
     
         leaveGroupButton.setOnAction(e -> {
-            try {
-                boolean success;
+            
+            try {   
                 GroupInfo group = server.getGroupInfo(groupName);
-                if (group != null && group.getOwner().equals(username)) {
-                    handleGroupOwnerExit(groupName);
-                    success = true;
+                Alert alert = new Alert(null);
+
+                if(group.getOwner().equals(username) && group.getMembers().size() == 1) {
+                    alert = new Alert(Alert.AlertType.INFORMATION, "Tem certeza que quer sair do grupo?\nO grupo será excluído após sua saída!", ButtonType.OK, ButtonType.CANCEL);    
+                } else if (group.getOwner().equals(username)) {
+                    alert = new Alert(Alert.AlertType.INFORMATION, "Tem certeza que quer sair do grupo?\nUm novo dono será escolhido para o grupo.", ButtonType.OK, ButtonType.CANCEL);
                 } else {
-                    success = server.leaveGroup(groupName, username);
+                    alert = new Alert(Alert.AlertType.INFORMATION, "Tem certeza que quer sair do grupo?", ButtonType.OK, ButtonType.CANCEL);
                 }
-                if (success) {
-                    showGroupList();
-                } else {
-                    System.out.println("Erro ao sair do grupo.");
+
+                Optional<ButtonType> result = alert.showAndWait();
+
+                if (result.isPresent() && result.get() == ButtonType.OK) {
+                    boolean success;
+                    if (group != null && group.getOwner().equals(username)) {
+                        handleGroupOwnerExit(groupName);
+                        success = true;
+                    } else {
+                        success = server.leaveGroup(groupName, username);
+                    }
+                    if (success) {
+                        showGroupList();
+                    } else {
+                        System.out.println("Erro ao sair do grupo.");
+                    }
                 }
             } catch (RemoteException ex) {
                 ex.printStackTrace();
@@ -600,7 +587,8 @@ public class ChatUI {
 
         backButton.setOnAction(e -> showGroupList());
     
-        groupChatLayout.getChildren().addAll(titleLabel, messageListView, messageField, sendMessageButton, leaveGroupButton, manageRequestsButton, manageMembersButton, backButton);
+        VBox inputLayout = new VBox(10, messageField, sendMessageButton, leaveGroupButton, manageRequestsButton, manageMembersButton, backButton); // ADICIONEI ISSO AQUI
+        groupChatLayout.getChildren().addAll(titleLabel, chatScroll, inputLayout); // MUDEI ISSO AQUI
     
         Scene groupChatScene = new Scene(groupChatLayout, 500, 400);
         primaryStage.setScene(groupChatScene);
@@ -608,6 +596,9 @@ public class ChatUI {
     }
     
     public void showGroupRequests(String groupName) {
+        currentWindow = "Group Requests";
+        currentGroup = groupName;
+
         VBox requestLayout = new VBox(10);
         requestLayout.setPadding(new Insets(10));
     
@@ -622,7 +613,7 @@ public class ChatUI {
         try {
             GroupInfo group = server.getGroupInfo(groupName);
             if (group != null && group.getOwner().equals(username)) {
-                requestListView.getItems().addAll(group.getPendingRequests());
+                requestListView.getItems().addAll(server.getPendingRequests(groupName));
             } else {
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Você não é o dono deste grupo.", ButtonType.OK);
                 alert.showAndWait();
@@ -675,6 +666,9 @@ public class ChatUI {
     }
     
     public void showManageMembersScreen(String groupName) {
+        currentWindow = "Group Chat";
+        currentGroup = groupName;
+
         VBox manageMembersLayout = new VBox(10);
         manageMembersLayout.setPadding(new Insets(10));
     
@@ -740,7 +734,7 @@ public class ChatUI {
         List<String> members = new ArrayList<>(group.getMembers()); // Obtém a lista de membros
         System.out.println(group.getMembers());
 
-        if (!members.isEmpty()) { 
+        if (members.size() > 0) { 
             // Se ainda houver membros, escolhemos o primeiro como novo dono
             String newOwner = members.get(0);
             group.setOwner(newOwner);
@@ -763,31 +757,6 @@ public class ChatUI {
             }
         }
     }
-
-    // public void sendFileToRecipient(String recipient) {
-    //     // Abre o gerenciador de arquivos para escolher o arquivo
-    //     FileChooser fileChooser = new FileChooser();
-    //     fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Todos os Arquivos", "*.*"));
-    //     File selectedFile = fileChooser.showOpenDialog(primaryStage);
-
-    //     if (selectedFile != null) {
-    //         try {
-    //             // Lê o arquivo como um array de bytes
-    //             byte[] fileData = Files.readAllBytes(selectedFile.toPath());
-    //             String fileName = selectedFile.getName();
-
-    //             // Cria o objeto FileInfo e envia ao servidor
-    //             FileInfo fileInfo = new FileInfo(fileName, fileData);
-    //             server.sendFile(username, recipient, fileInfo);
-
-    //             // Mensagem de sucesso no chat
-    //             System.out.print("Você enviou um arquivo: " + fileName + "\n");
-
-    //         } catch (IOException e) {
-    //             e.printStackTrace();
-    //         }
-    //     }
-    // }
 
     public void sendFileToRecipient(String recipient) {
         FileChooser fileChooser = new FileChooser();
@@ -915,6 +884,53 @@ public class ChatUI {
         }
     }
 
+
+    public void updateChat(String recipientOrGroup, boolean isGroup) {
+        Platform.runLater(() -> {
+            
+            try {    
+                List<String> messages;
+                if (isGroup && currentWindow.equals("Group Chat") && recipientOrGroup.equals(currentGroup)) {
+                    chatMessages.getChildren().clear(); // Limpa o chat atual
+                    messages = server.getGroupMessages(recipientOrGroup);
+                    for (String message : messages) { //ADICIONEI ISSO
+                        chatMessages.getChildren().add(new Label(message)); // ADICIONEI ISSO
+                    }
+                } else if (currentWindow.equals("Private Chat") && recipientOrGroup.equals(currentRecipitent)) {
+                    chatMessages.getChildren().clear(); // Limpa o chat atual
+                    List<MessageInfo> history = server.getMessageHistory(username, recipientOrGroup);
+                    for (MessageInfo msg : history) {
+                        if (msg.isFile()) {
+                            addFileToChat(msg.getSender(), msg.getRecipient(), msg.getFile().getFileName());
+                        } else {
+                            chatMessages.getChildren().add(new Label(msg.toString()));
+                        }
+                    }
+                }
+
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+        });
+    }
+
+    public void showNotification(String msg, String content, String groupName) {
+        
+
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION, msg, ButtonType.OK);
+            alert.showAndWait();
+            if (content.equals("joinapproval") && currentWindow.equals("Group List")) {
+                showGroupList();
+            }
+            if (content.equals("groupremoval") && currentWindow.equals("Group Chat") && currentGroup.equals(groupName)) {
+                showGroupList();
+            }
+            if (content.equals("newowne") && currentWindow.equals("Group Chat") && currentGroup.equals(groupName)) {
+                showGroupChatWindow(groupName);
+            }
+        });
+    }
 
 
 }

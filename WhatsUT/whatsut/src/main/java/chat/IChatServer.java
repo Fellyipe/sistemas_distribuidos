@@ -16,6 +16,7 @@ public interface IChatServer extends Remote {
     List<String> listOnlineUsers() throws RemoteException; // Retorna apenas os usuários online
     public void sendMessage(String sender, String recipient, String message) throws RemoteException;
     public List<MessageInfo> getMessageHistory(String user1, String user2) throws RemoteException;
+    public FileInfo receiveFile(String sender, String recipient, String fileName) throws RemoteException;
     public boolean createGroup(String groupName, String description, String owner) throws RemoteException;
     public boolean requestJoinGroup(String groupName, String username) throws RemoteException;
     public boolean approveJoinRequest(String groupName, String owner, String username, boolean approve) throws RemoteException;
@@ -28,5 +29,7 @@ public interface IChatServer extends Remote {
     public boolean deleteGroup(String groupName) throws RemoteException;
     public boolean changeGroupOwner(String groupName, String newOwner) throws RemoteException;
     public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException;
-    public FileInfo receiveFile(String sender, String recipient, String fileName) throws RemoteException;
+    public void registerClient(String username, IChatClient client) throws RemoteException;
+    public void unregisterClient(String username) throws RemoteException;
+    public List<String> getPendingRequests(String groupName) throws RemoteException;
 }

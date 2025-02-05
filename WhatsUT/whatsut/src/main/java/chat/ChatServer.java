@@ -6,16 +6,19 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
+import chat.database.DatabaseManager;
 import chat.info.*;
 import chat.utils.*;
 
 public class ChatServer extends UnicastRemoteObject implements IChatServer {
     private final Map<String, UserInfo> users = new HashMap<>(); // username -> UserInfo
     private final Map<String, IChatClient> onlineUsers = new HashMap<>(); // username -> client instance
-    //private final Map<String, Map<String, List<MessageInfo>>> messageHistory = new HashMap<>();
     private final Map<String, GroupInfo> groups = new HashMap<>(); // Mapeia o nome do grupo para o objeto Group
-    private Map<String, FileInfo> storedFiles = new ConcurrentHashMap<>();
     private Map<String, List<MessageInfo>> messageHistory = new ConcurrentHashMap<>();
+    private final DatabaseManager dbManager = new DatabaseManager();
+    private Map<String, IChatClient> clientMap = new HashMap<>();
+    
+    private Map<String, FileInfo> storedFiles = new ConcurrentHashMap<>();
 
     public ChatServer() throws RemoteException {
         super();
@@ -24,27 +27,42 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
         users.put("user2", new UserInfo("user2", HashUtil.generateHash("password2"), "user2@mail.com"));
     }
 
+    // @Override
+    // public boolean registerUser(String username, String password, String email) throws RemoteException {
+    //     if (users.containsKey(username)) {
+    //         return false; // Usuário já existe
+    //     }
+        
+    //     users.put(username, new UserInfo(username, HashUtil.generateHash(password), email));
+    //     return true; // Usuário registrado com sucesso
+    // }
+
+    // @Override
+    // public boolean login(String username, String password, IChatClient client) throws RemoteException {
+        
+    //     if (users.containsKey(username)) {
+    //         String storedHash = users.get(username).getPassword();
+    //         if (storedHash.equals(HashUtil.generateHash(password))) {
+    //             onlineUsers.put(username, client);
+    //             System.out.println(username + " logged in.");
+    //             return true;
+    //         }
+            
+    //     }
+    //     return false;
+    // }
+
     @Override
     public boolean registerUser(String username, String password, String email) throws RemoteException {
-        if (users.containsKey(username)) {
-            return false; // Usuário já existe
-        }
-        
-        users.put(username, new UserInfo(username, HashUtil.generateHash(password), email));
-        return true; // Usuário registrado com sucesso
+        return dbManager.registerUser(username, password, email);
     }
 
     @Override
     public boolean login(String username, String password, IChatClient client) throws RemoteException {
-        
-        if (users.containsKey(username)) {
-            String storedHash = users.get(username).getPassword();
-            if (storedHash.equals(HashUtil.generateHash(password))) {
-                onlineUsers.put(username, client);
-                System.out.println(username + " logged in.");
-                return true;
-            }
-            
+        if (dbManager.login(username, password)) {
+            onlineUsers.put(username, client);
+            System.out.println(username + " logged in.");
+            return true;
         }
         return false;
     }
@@ -55,69 +73,47 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
         System.out.println(username + " logged out.");
     }
 
-    @Override
-    public List<String> listUsers() throws RemoteException {
-        return new ArrayList<>(users.keySet());
-    }
+    // @Override
+    // public List<String> listUsers() throws RemoteException {
+    //     return new ArrayList<>(users.keySet());
+    // }
 
     @Override
     public List<String> listOnlineUsers() throws RemoteException {
         return new ArrayList<>(onlineUsers.keySet());
     }
 
-    // @Override
-    // public void sendMessage(String sender, String receiver, String message) throws RemoteException {
-        
-    //     // Armazena a mensagem na estrutura de histórico
-    //     messageHistory
-    //         .computeIfAbsent(sender, k -> new HashMap<>())
-    //         .computeIfAbsent(receiver, k -> new ArrayList<>())
-    //         .add(new MessageInfo(sender, message));
+    @Override
+    public List<String> listUsers() throws RemoteException {
+        return dbManager.listUsers();
+    }
 
-    //     messageHistory
-    //         .computeIfAbsent(receiver, k -> new HashMap<>())
-    //         .computeIfAbsent(sender, k -> new ArrayList<>())
-    //         .add(new MessageInfo(sender, message));
-        
-    //     IChatClient client = onlineUsers.get(receiver);
-    //     if (client != null) {
-    //         client.receiveMessage(sender, message);
-    //     } else {
-    //         System.out.println("User " + receiver + " not found or not online.");
-    //     }
+
+
+
+
+    // @Override
+    // public void sendMessage(String sender, String recipient, String message) throws RemoteException {
+    //     MessageInfo msg = new MessageInfo(sender, recipient, message);
+    //     storeMessage(sender, recipient, msg);
     // }
 
-    // // Recupera o histórico de mensagens entre dois usuários
     // @Override
-    // public List<MessageInfo> getMessageHistory(String user1, String user2) {
-    //     if (messageHistory.containsKey(user1) && messageHistory.get(user1).containsKey(user2)) {
-    //         return messageHistory.get(user1).get(user2);
-    //     }
-    //     return new ArrayList<>(); // Retorna lista vazia se não houver histórico
+    // public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
+    //     MessageInfo msg = new MessageInfo(sender, recipient, file);
+    //     storeMessage(sender, recipient, msg);
     // }
 
-    @Override
-    public void sendMessage(String sender, String recipient, String message) throws RemoteException {
-        MessageInfo msg = new MessageInfo(sender, recipient, message);
-        storeMessage(sender, recipient, msg);
-    }
+    // private void storeMessage(String sender, String recipient, MessageInfo msg) {
+    //     String key = getChatKey(sender, recipient);
+    //     messageHistory.putIfAbsent(key, new ArrayList<>());
+    //     messageHistory.get(key).add(msg);
+    // }
 
-    @Override
-    public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
-        MessageInfo msg = new MessageInfo(sender, recipient, file);
-        storeMessage(sender, recipient, msg);
-    }
-
-    private void storeMessage(String sender, String recipient, MessageInfo msg) {
-        String key = getChatKey(sender, recipient);
-        messageHistory.putIfAbsent(key, new ArrayList<>());
-        messageHistory.get(key).add(msg);
-    }
-
-    @Override
-    public List<MessageInfo> getMessageHistory(String user1, String user2) throws RemoteException {
-        return messageHistory.getOrDefault(getChatKey(user1, user2), new ArrayList<>());
-    }
+    // @Override
+    // public List<MessageInfo> getMessageHistory(String user1, String user2) throws RemoteException {
+    //     return messageHistory.getOrDefault(getChatKey(user1, user2), new ArrayList<>());
+    // }
 
     private String getChatKey(String user1, String user2) {
         List<String> users = Arrays.asList(user1, user2);
@@ -125,150 +121,165 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
         return users.get(0) + "_" + users.get(1);
     }
 
+    // @Override
+    // public FileInfo receiveFile(String sender, String recipient, String fileName) throws RemoteException {
+    //     String key = getChatKey(sender, recipient);
+
+    //     List<MessageInfo> messages = messageHistory.getOrDefault(key, new ArrayList<>());
+
+    //     for (Map.Entry<String, List<MessageInfo>> entry : messageHistory.entrySet()) {
+    //         System.out.println("Key: " + entry.getKey());
+    //     }
+        
+    //     for (MessageInfo msg : messages) {
+            
+    //         if (msg.isFile() && msg.getFile().getFileName().equals(fileName)) {
+    //             return msg.getFile(); // Retorna o arquivo encontrado
+    //         }
+    //     }
+    //     return null; // Retorna null se o arquivo não existir no histórico
+    // }
+
+
     @Override
-    // Criar um grupo
+    public void sendMessage(String sender, String recipient, String message) throws RemoteException {
+        MessageInfo msg = new MessageInfo(sender, recipient, message);
+        dbManager.storeMessage(msg); // Agora armazenamos no banco de dados
+
+        IChatClient recipientClient = getClientByUsername(recipient); // Você deve implementar isso
+        if (recipientClient != null) {
+            recipientClient.notifyNewMessage(sender); // Chama o callback no cliente
+        }
+    }
+
+    @Override
+    public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
+        MessageInfo msg = new MessageInfo(sender, recipient, file);
+        dbManager.storeMessage(msg); // Também armazenamos arquivos no banco
+
+        IChatClient recipientClient = getClientByUsername(recipient); // Você deve implementar isso
+        if (recipientClient != null) {
+            recipientClient.notifyNewMessage(sender); // Chama o callback no cliente
+        }
+    }
+
+    @Override
+    public List<MessageInfo> getMessageHistory(String user1, String user2) throws RemoteException {
+        return dbManager.getMessageHistory(user1, user2); // Busca o histórico no banco de dados
+    }
+
+    @Override
+    public FileInfo receiveFile(String sender, String recipient, String fileName) throws RemoteException {
+        return dbManager.receiveFile(sender, recipient, fileName); // Busca um arquivo específico no banco
+    }
+
+    @Override
     public boolean createGroup(String groupName, String description, String owner) throws RemoteException {
-        if (groups.containsKey(groupName)) {
-            return false; // Grupo com o mesmo nome já existe
-        }
-        groups.put(groupName, new GroupInfo(groupName, description, owner));
-        return true;
+        return dbManager.createGroup(groupName, description, owner);
     }
 
     @Override
-    // Solicitar entrada em um grupo
     public boolean requestJoinGroup(String groupName, String username) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
-        if (group == null) {
-            return false; // Grupo não encontrado
-        }
-        if (group.getOwner().equals(username)) {
-            return false; // O dono do grupo não pode solicitar entrada
-        }
-        if (group.getMembers().contains(username)) {
-            return false; // Usuário já é membro do grupo
-        }
-        group.addPendingRequest(username);
-        return true;
+        return dbManager.requestJoinGroup(groupName, username);
     }
 
     @Override
-    // Aprovar ou rejeitar uma solicitação
     public boolean approveJoinRequest(String groupName, String owner, String username, boolean approve) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
-        if (group == null || !group.getOwner().equals(owner)) {
-            return false; // Grupo não encontrado ou usuário não é o dono
+        boolean result = dbManager.approveJoinRequest(groupName, owner, username, approve);
+        if (result) {
+            IChatClient memberClient = getClientByUsername(username);
+            if (memberClient != null) {
+                memberClient.notifyGroupJoinApproval(groupName, approve);
+            }
         }
-
-        if (!group.getPendingRequests().contains(username)) {
-            return false; // Solicitação não encontrada
-        }
-
-        group.removePendingRequest(username);
-        if (approve) {
-            group.addMember(username);
-        }
-        return true;
+        
+        return result; 
     }
 
     @Override
-    // Listar grupos
+    public List<String> getPendingRequests(String groupName) throws RemoteException {
+        return dbManager.getPendingRequests(groupName);
+    }
+
+    @Override
     public List<String> listGroups() throws RemoteException {
-        return groups.values().stream() // Cria um stream a partir dos valores do mapa
-                 .map(GroupInfo::getName) // Mapeia cada GroupInfo para seu nome
-                 .collect(Collectors.toList()); // Coleta os resultados em uma List<String>
+        return dbManager.listGroups();
     }
 
     @Override
     public void sendGroupMessage(String groupName, String sender, String message) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
+        dbManager.sendGroupMessage(groupName, sender, message);
+        System.out.println("Mensagem: " + message);
+        GroupInfo group = dbManager.getGroupInfo(groupName);
         if (group != null) {
-            group.addMessage(sender + ": " + message);
+            // Notifica todos os membros do grupo sobre a nova mensagem
+            for (String member : group.getMembers()) {
+                IChatClient memberClient = getClientByUsername(member);
+                if (memberClient != null) {
+                    memberClient.notifyNewMessage(groupName); // Chama o callback no cliente
+                }
+            }
         }
     }
 
     @Override
     public List<String> getGroupMessages(String groupName) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
-        return (group != null) ? group.getMessages() : new ArrayList<>();
+        return dbManager.getGroupMessages(groupName);
     }
 
     @Override
     public boolean leaveGroup(String groupName, String username) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
-        if (group != null) {
-            return group.removeMember(username);
-        }
-        return false;
-    }
-
-    @Override
-    public GroupInfo getGroupInfo(String groupName) throws RemoteException {
-        return groups.get(groupName);
-    }
-
-    @Override
-    public boolean removeUserFromGroup(String groupName, String userToRemove) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
-        if (group != null) { // Verifica se quem chama é o dono
-            boolean removed = group.removeMember(userToRemove);
-            if (removed) {
-                System.out.println(userToRemove + " foi removido do grupo " + groupName);
-            }
-            return removed;
-        }
-        return false;
+        return dbManager.removeGroupMember(groupName, username);
     }
 
     @Override
     public boolean deleteGroup(String groupName) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
-        if (group != null) {
-            groups.remove(groupName);
-            return true;
+        return dbManager.deleteGroup(groupName);
+    }
+
+    @Override
+    public boolean removeUserFromGroup(String groupName, String userToRemove) throws RemoteException {
+        boolean removed = dbManager.removeGroupMember(groupName, userToRemove);
+        if (removed) {
+            IChatClient memberClient = getClientByUsername(userToRemove);
+            if (memberClient != null) {
+                memberClient.notifyGroupRemoval(groupName);
+            }
         }
-        return false;
+
+        return removed;
+    }
+
+    @Override
+    public GroupInfo getGroupInfo(String groupName) throws RemoteException {
+        return dbManager.getGroupInfo(groupName);
     }
 
     @Override
     public boolean changeGroupOwner(String groupName, String newOwner) throws RemoteException {
-        GroupInfo group = groups.get(groupName);
-
-        if (group != null && group.isMember(newOwner)) {
-            group.setOwner(newOwner);
-            return true;
-        }
-        return false;
-    }
-
-    // @Override
-    // public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
-    //     String fileKey = sender + "_" + recipient + "_" + file.getFileName(); // Nome único
-    //     storedFiles.put(fileKey, file);
-    //     System.out.println("📁 Arquivo recebido: " + file.getFileName() + " de " + sender + " para " + recipient);
-    // }
-
-    @Override
-    public FileInfo receiveFile(String sender, String recipient, String fileName) throws RemoteException {
-        String key = getChatKey(sender, recipient);
-        System.out.println(key);
-
-        List<MessageInfo> messages = messageHistory.getOrDefault(key, new ArrayList<>());
-
-        for (Map.Entry<String, List<MessageInfo>> entry : messageHistory.entrySet()) {
-            System.out.println("Key: " + entry.getKey());
-        }
-
-        System.out.println(fileName);
-        System.out.println(messages.size());
-        for (MessageInfo msg : messages) {
-            System.out.println(msg.isFile() + "Dentro");
-            System.out.println(msg.getFile().getFileName());
-            if (msg.isFile() && msg.getFile().getFileName().equals(fileName)) {
-                return msg.getFile(); // Retorna o arquivo encontrado
+        boolean changed = dbManager.changeGroupOwner(groupName, newOwner);
+        IChatClient memberClient = getClientByUsername(newOwner);
+        if (changed) {
+            if (memberClient != null) {
+                memberClient.notifyNewGroupOwner(groupName);
             }
         }
-        return null; // Retorna null se o arquivo não existir no histórico
+            
+        return changed;
+    }
+
+    // Registra o cliente quando ele se conecta
+    public void registerClient(String username, IChatClient client) throws RemoteException {
+        clientMap.put(username, client);
+    }
+
+    // Remove o cliente quando ele se desconecta
+    public void unregisterClient(String username) throws RemoteException {
+        clientMap.remove(username);
+    }
+
+    private IChatClient getClientByUsername(String username) {
+        return clientMap.get(username);
     }
 
 }

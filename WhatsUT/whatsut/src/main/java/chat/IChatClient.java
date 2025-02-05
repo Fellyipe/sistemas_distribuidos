@@ -13,5 +13,9 @@ public interface IChatClient extends Remote {
     public void logout() throws RemoteException;
     public void sendMessage(String recipient, String message) throws RemoteException;
     public java.util.List<String> getUserList() throws RemoteException;
+    void notifyNewMessage(String sender) throws RemoteException;
+    public void notifyGroupJoinApproval(String groupName, boolean approved) throws RemoteException;
+    public void notifyGroupRemoval(String groupName) throws RemoteException;
+    public void notifyNewGroupOwner(String groupName) throws RemoteException;
 }
 

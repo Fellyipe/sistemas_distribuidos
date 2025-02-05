@@ -20,7 +20,6 @@ public class GroupInfo implements Serializable {
         this.members = new ArrayList<>();
         this.pendingRequests = new HashSet<>();
         this.messages = new ArrayList<>();
-        members.add(owner);
     }
 
     public String getName() {

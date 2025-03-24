@@ -126,13 +126,13 @@ public class DatabaseManager {
         return users;
     }
 
-    public void sendMessage(String sender, String recipient, String message) throws RemoteException {
-        MessageInfo msg = new MessageInfo(sender, recipient, message);
+    public void sendMessage(String sender, String recipient, String message, long timestamp) throws RemoteException {
+        MessageInfo msg = new MessageInfo(sender, recipient, message, timestamp);
         storeMessage(msg);
     }
 
-    public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
-        MessageInfo msg = new MessageInfo(sender, recipient, file);
+    public void sendFile(String sender, String recipient, FileInfo file, long timestamp) throws RemoteException {
+        MessageInfo msg = new MessageInfo(sender, recipient, file, timestamp);
         storeMessage(msg);
     }
 
@@ -189,9 +189,9 @@ public class DatabaseManager {
     
                 if (fileName != null) {
                     FileInfo fileInfo = new FileInfo(fileName, fileData);
-                    messages.add(new MessageInfo(sender, recipient, fileInfo));
+                    messages.add(new MessageInfo(sender, recipient, fileInfo, timestamp));
                 } else {
-                    messages.add(new MessageInfo(sender, recipient, message));
+                    messages.add(new MessageInfo(sender, recipient, message, timestamp));
                 }
             }
         } catch (SQLException e) {

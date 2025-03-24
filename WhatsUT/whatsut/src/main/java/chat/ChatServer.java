@@ -143,7 +143,8 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
 
     @Override
     public void sendMessage(String sender, String recipient, String message) throws RemoteException {
-        MessageInfo msg = new MessageInfo(sender, recipient, message);
+        long timestamp = System.currentTimeMillis();
+        MessageInfo msg = new MessageInfo(sender, recipient, message, timestamp);
         dbManager.storeMessage(msg); // Agora armazenamos no banco de dados
 
         IChatClient recipientClient = getClientByUsername(recipient); // Você deve implementar isso
@@ -154,7 +155,8 @@ public class ChatServer extends UnicastRemoteObject implements IChatServer {
 
     @Override
     public void sendFile(String sender, String recipient, FileInfo file) throws RemoteException {
-        MessageInfo msg = new MessageInfo(sender, recipient, file);
+        long timestamp = System.currentTimeMillis();
+        MessageInfo msg = new MessageInfo(sender, recipient, file, timestamp);
         dbManager.storeMessage(msg); // Também armazenamos arquivos no banco
 
         IChatClient recipientClient = getClientByUsername(recipient); // Você deve implementar isso

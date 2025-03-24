@@ -6,6 +6,12 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundImage;
+import javafx.scene.layout.BackgroundPosition;
+import javafx.scene.layout.BackgroundRepeat;
+import javafx.scene.layout.BackgroundSize;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
@@ -13,6 +19,15 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.Background;
+import javafx.scene.layout.BackgroundImage;
+import javafx.scene.layout.BackgroundPosition;
+import javafx.scene.layout.BackgroundRepeat;
+import javafx.scene.layout.BackgroundSize;
+import javafx.scene.layout.StackPane;
+import javafx.scene.Scene;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -46,6 +61,10 @@ public class ChatUI {
     private String currentWindow = null;
     private String currentRecipitent = null;
     private String currentGroup = null;
+    private Image imagemFundo = new Image("background.jpg");
+    private BackgroundImage backgroundImage = new BackgroundImage(imagemFundo,
+                        BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT,
+                        BackgroundPosition.CENTER, new BackgroundSize(BackgroundSize.AUTO, BackgroundSize.AUTO, false, false, true, false));
 
 
     public ChatUI(Stage primaryStage) {
@@ -88,10 +107,11 @@ public class ChatUI {
         VBox startLayout = new VBox(15);
         startLayout.setPadding(new Insets(20));
         startLayout.setAlignment(Pos.CENTER);
-        startLayout.setStyle("-fx-background-color: #2c3e50;");
+        //startLayout.setStyle("-fx-background-color: #2c3e50;");
+        startLayout.setBackground(new Background(backgroundImage));
 
     Button loginButton = new Button("Login");
-    Button registerButton = new Button("Register");
+    Button registerButton = new Button("Criar nova conta");
 
     // Estilização dos botões
     String buttonStyle = "-fx-background-color: #3498db; -fx-text-fill: white; " +
@@ -106,7 +126,7 @@ public class ChatUI {
     loginButton.setOnAction(e -> showLoginScreen());
     registerButton.setOnAction(e -> showRegisterScreen());
 
-    Scene startScene = new Scene(startLayout, 350, 250);
+    Scene startScene = new Scene(startLayout, 960, 540); //350, 250
     primaryStage.setScene(startScene);
     primaryStage.show();
 }
@@ -117,21 +137,24 @@ public class ChatUI {
         VBox loginLayout = new VBox(15);
         loginLayout.setPadding(new Insets(20));
         loginLayout.setAlignment(Pos.CENTER);
-        loginLayout.setStyle("-fx-background-color: #2c3e50;");
+        //loginLayout.setStyle("-fx-background-color: #2c3e50;");
+        loginLayout.setBackground(new Background(backgroundImage));
 
         Label titleLabel = new Label("Insira suas credenciais:");
         titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
 
     TextField usernameField = new TextField();
-    usernameField.setPromptText("Username");
+    usernameField.setPromptText("Nome de usuário");
     usernameField.setStyle("-fx-font-size: 14px; -fx-pref-width: 200px;");
+    usernameField.setMaxWidth(250);
 
     PasswordField passwordField = new PasswordField();
-    passwordField.setPromptText("Password");
+    passwordField.setPromptText("Senha");
     passwordField.setStyle("-fx-font-size: 14px; -fx-pref-width: 200px;");
+    passwordField.setMaxWidth(250);
 
-    Button loginButton = new Button("Login");
-    Button backButton = new Button("Back");
+    Button loginButton = new Button("Entrar");
+    Button backButton = new Button("Voltar");
     Label statusLabel = new Label();
     statusLabel.setStyle("-fx-text-fill: white;");
 
@@ -164,14 +187,14 @@ public class ChatUI {
             }
         });
 
-    backButton.setOnAction(e -> showStartScreen());
+        backButton.setOnAction(e -> showStartScreen());
 
-    loginLayout.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, backButton, statusLabel);
+        loginLayout.getChildren().addAll(titleLabel, usernameField, passwordField, loginButton, backButton, statusLabel);
 
-    Scene loginScene = new Scene(loginLayout, 350, 250);
-    primaryStage.setScene(loginScene);
-    primaryStage.show();
-}
+        Scene loginScene = new Scene(loginLayout, 960, 540);// 350, 250
+        primaryStage.setScene(loginScene);
+        primaryStage.show();
+    }
 
     // Tela de Registro
     public void showRegisterScreen() {
@@ -180,25 +203,29 @@ public class ChatUI {
         registerLayout.setPadding(new Insets(20));
 
         registerLayout.setAlignment(Pos.CENTER);
-    registerLayout.setStyle("-fx-background-color: #2c3e50;");
+        //registerLayout.setStyle("-fx-background-color: #2c3e50;");
+        registerLayout.setBackground(new Background(backgroundImage));
 
-    Label titleLabel = new Label("Insira seus dados:");
-    titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
+        Label titleLabel = new Label("Insira seus dados:");
+        titleLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
 
     TextField usernameField = new TextField();
-    usernameField.setPromptText("Username");
+    usernameField.setPromptText("Nome de usuário");
     usernameField.setStyle("-fx-font-size: 14px; -fx-pref-width: 200px;");
+    usernameField.setMaxWidth(250);
 
     PasswordField passwordField = new PasswordField();
-    passwordField.setPromptText("Password");
+    passwordField.setPromptText("Senha");
     passwordField.setStyle("-fx-font-size: 14px; -fx-pref-width: 200px;");
+    passwordField.setMaxWidth(250);
 
     TextField emailField = new TextField();
     emailField.setPromptText("Email");
     emailField.setStyle("-fx-font-size: 14px; -fx-pref-width: 200px;");
+    emailField.setMaxWidth(250);
 
-    Button registerButton = new Button("Register");
-    Button backButton = new Button("Back");
+    Button registerButton = new Button("Cadastre-se");
+    Button backButton = new Button("Voltar");
     Label statusLabel = new Label();
     statusLabel.setStyle("-fx-text-fill: white;");
 
@@ -221,9 +248,9 @@ public class ChatUI {
             boolean success = server.registerUser(username, password, email);
 
             if (success) {
-                statusLabel.setText("User registered successfully. You can now log in.");
+                statusLabel.setText("Usuário registrado com sucesso! Agora você pode entrar na conta.");
             } else {
-                statusLabel.setText("Username already exists. Please try again.");
+                statusLabel.setText("Nome de usuário já existente. Tente outro.");
             }
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -235,7 +262,7 @@ public class ChatUI {
 
     registerLayout.getChildren().addAll(titleLabel, usernameField, passwordField, emailField, registerButton, backButton, statusLabel);
 
-    Scene registerScene = new Scene(registerLayout, 350, 300);
+    Scene registerScene = new Scene(registerLayout, 960, 540);// 350, 300
     primaryStage.setScene(registerScene);
     primaryStage.show();
 }
@@ -254,8 +281,9 @@ public class ChatUI {
             VBox userListLayout = new VBox(15);
             userListLayout.setPadding(new Insets(20));
             userListLayout.setAlignment(Pos.CENTER);
-            userListLayout.setStyle("-fx-background-color: #2c3e50;");
-    
+            //userListLayout.setStyle("-fx-background-color: #2c3e50;");
+            userListLayout.setBackground(new Background(backgroundImage));
+
             Label title = new Label("Lista de Usuários:");
             title.setStyle("-fx-text-fill: white; -fx-font-size: 18px; -fx-font-weight: bold;");
     
@@ -267,6 +295,7 @@ public class ChatUI {
             ListView<String> usersView = new ListView<>(FXCollections.observableArrayList(allUsers));
             usersView.setPrefHeight(350);
             usersView.setStyle("-fx-background-color: white; -fx-border-radius: 8px;");
+            usersView.setMaxWidth(400);
 
 
             // Configurar o cell factory para personalizar cada célula
@@ -352,7 +381,7 @@ public class ChatUI {
                 privateChatButton, backButton
             );
     
-            Scene userListScene = new Scene(userListLayout, 450, 550);
+            Scene userListScene = new Scene(userListLayout, 960, 540);// 450, 550
             primaryStage.setScene(userListScene);
             primaryStage.show();
         } catch (RemoteException e) {
@@ -367,7 +396,8 @@ public class ChatUI {
         VBox chatLayout = new VBox(15);
     chatLayout.setPadding(new Insets(20));
     chatLayout.setAlignment(Pos.CENTER);
-    chatLayout.setStyle("-fx-background-color: #2c3e50;");
+    //chatLayout.setStyle("-fx-background-color: #2c3e50;");
+    chatLayout.setBackground(new Background(backgroundImage));
     
         Label welcomeLabel = new Label("Bem-vindo ao WhatsUT!");
         welcomeLabel.setFont(new Font("Arial", 20));
@@ -403,7 +433,7 @@ public class ChatUI {
     
         chatLayout.getChildren().addAll(welcomeLabel, userListButton, groupListButton, backButton);
     
-        Scene chatScene = new Scene(chatLayout, 450, 350);
+        Scene chatScene = new Scene(chatLayout, 960, 540);// 450, 350
         primaryStage.setScene(chatScene);
         primaryStage.show();
     }
@@ -415,7 +445,8 @@ public class ChatUI {
         VBox chatLayout = new VBox(15);
         chatLayout.setPadding(new Insets(20));
         chatLayout.setAlignment(Pos.CENTER);
-        chatLayout.setStyle("-fx-background-color: #2c3e50;");
+        //chatLayout.setStyle("-fx-background-color: #2c3e50;");
+        chatLayout.setBackground(new Background(backgroundImage));
     
     
         Label title = new Label("Chat com " + recipient);
@@ -431,6 +462,7 @@ public class ChatUI {
 
         chatScroll.setStyle("-fx-background: transparent; -fx-background-color:rgb(35, 56, 61); -fx-border-color: transparent;");
         chatScroll.setPrefHeight(300);
+        chatScroll.setMaxWidth(720);
     
         try {
             List<MessageInfo> history = server.getMessageHistory(username, recipient);
@@ -448,6 +480,7 @@ public class ChatUI {
         TextField messageField = new TextField();
         messageField.setPromptText("Digite sua mensagem...");
         messageField.setStyle("-fx-border-radius: 8px; -fx-padding: 8px;");
+        messageField.setMaxWidth(720);
     
         Button sendButton = new Button("✉️ Enviar");
         Button sendFileButton = new Button("📎 Enviar Arquivo");
@@ -487,7 +520,7 @@ public class ChatUI {
     
         chatLayout.getChildren().addAll(title, chatScroll, inputLayout);
     
-        Scene chatScene = new Scene(chatLayout, 500, 550);
+        Scene chatScene = new Scene(chatLayout, 960, 540);// 500, 550
         primaryStage.setScene(chatScene);
         primaryStage.show();
     }
@@ -528,14 +561,16 @@ public class ChatUI {
         VBox groupListLayout = new VBox(15);
         groupListLayout.setPadding(new Insets(20));
         groupListLayout.setAlignment(Pos.CENTER);
-    groupListLayout.setStyle("-fx-background-color: #2c3e50;");
-    
+        //groupListLayout.setStyle("-fx-background-color: #2c3e50;");
+        groupListLayout.setBackground(new Background(backgroundImage));
+
         Label titleLabel = new Label("Lista de Grupos Disponíveis:");
         titleLabel.setFont(new Font("Arial", 18));
     titleLabel.setTextFill(Color.WHITE);
 
         ListView<String> groupListView = new ListView<>();
         groupListView.setStyle("-fx-background-color: #ecf0f1;");
+        groupListView.setMaxWidth(400);
 
         Button joinGroupButton = new Button("Solicitar entrada");
         joinGroupButton.setDisable(true); // Desativado inicialmente
@@ -612,7 +647,7 @@ public class ChatUI {
 
     groupListLayout.getChildren().addAll(titleLabel, groupListView, buttonLayout1, buttonLayout2);
 
-    Scene groupListScene = new Scene(groupListLayout, 450, 350);
+    Scene groupListScene = new Scene(groupListLayout, 960, 540);// 450, 350
     primaryStage.setScene(groupListScene);
     primaryStage.show();
 }
@@ -623,7 +658,8 @@ public class ChatUI {
         VBox createGroupLayout = new VBox(15);
         createGroupLayout.setPadding(new Insets(20));
         createGroupLayout.setAlignment(Pos.CENTER);
-        createGroupLayout.setStyle("-fx-background-color: #2c3e50;");
+        //createGroupLayout.setStyle("-fx-background-color: #2c3e50;");
+        createGroupLayout.setBackground(new Background(backgroundImage));
         
         Label titleLabel = new Label("Criar um Novo Grupo");
         titleLabel.setFont(new Font("Arial", 18));
@@ -631,27 +667,29 @@ public class ChatUI {
 
         TextField groupNameField = new TextField();
         groupNameField.setPromptText("Nome do Grupo");
+        groupNameField.setMaxWidth(250);
         
         TextField groupDescriptionField = new TextField();
         groupDescriptionField.setPromptText("Descrição do Grupo");
+        groupDescriptionField.setMaxWidth(250);
         
         // Aplicando estilo nos campos de entrada
-    String fieldStyle = "-fx-background-color: #ecf0f1; -fx-border-radius: 5px; -fx-padding: 8px;";
-    groupNameField.setStyle(fieldStyle);
-    groupDescriptionField.setStyle(fieldStyle);
+        String fieldStyle = "-fx-background-color: #ecf0f1; -fx-border-radius: 5px; -fx-padding: 8px;";
+        groupNameField.setStyle(fieldStyle);
+        groupDescriptionField.setStyle(fieldStyle);
 
-    Button createButton = new Button("✔ Criar");
-    Button backButton = new Button("❌ Voltar");
-        
+        Button createButton = new Button("✔ Criar");
+        Button backButton = new Button("❌ Voltar");
+            
         // Aplicando estilo aos botões
-    String buttonStyle = "-fx-background-color: #3498db; -fx-text-fill: white; " +
-    "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
-    "-fx-padding: 10px; -fx-border-radius: 8px;";
+        String buttonStyle = "-fx-background-color: #3498db; -fx-text-fill: white; " +
+        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
+        "-fx-padding: 10px; -fx-border-radius: 8px;";
 
-createButton.setStyle(buttonStyle);
-backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
-   "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
-   "-fx-padding: 10px; -fx-border-radius: 8px;");
+        createButton.setStyle(buttonStyle);
+        backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
+        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
+        "-fx-padding: 10px; -fx-border-radius: 8px;");
 
         Label statusLabel = new Label();
         statusLabel.setTextFill(Color.WHITE);
@@ -681,11 +719,11 @@ backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
             }
         });
         
-        backButton.setOnAction(e -> showChatWindow());
+        backButton.setOnAction(e -> showGroupList());
         
         createGroupLayout.getChildren().addAll(titleLabel, groupNameField, groupDescriptionField, createButton, backButton, statusLabel);
         
-        Scene createGroupScene = new Scene(createGroupLayout, 450, 350);
+        Scene createGroupScene = new Scene(createGroupLayout, 960, 540);// 450, 350
         primaryStage.setScene(createGroupScene);
         primaryStage.show();
     }
@@ -697,7 +735,8 @@ backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
         VBox groupChatLayout = new VBox(10);
         groupChatLayout.setPadding(new Insets(10));
         groupChatLayout.setAlignment(Pos.CENTER);
-        groupChatLayout.setStyle("-fx-background-color: #2c3e50;");
+        //groupChatLayout.setStyle("-fx-background-color: #2c3e50;");
+        groupChatLayout.setBackground(new Background(backgroundImage));
         
         Label titleLabel = new Label("Grupo: " + groupName);
         titleLabel.setFont(new Font("Arial", 18));
@@ -710,6 +749,7 @@ backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
     chatArea.setEditable(false); // ADICIONEI ISSO
     ScrollPane chatScroll = new ScrollPane(chatMessages); // ADICIONEI ISSO
     chatScroll.setFitToWidth(true); // ADICIONEI ISSO
+    chatScroll.setMaxWidth(720);
 
         ListView<String> messageListView = new ListView<>();
         messageListView.setStyle("-fx-background-color: rgb(35, 56, 61); -fx-border-radius: 5px;");
@@ -717,6 +757,7 @@ backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
         TextField messageField = new TextField();
         messageField.setPromptText("Digite sua mensagem...");
         messageField.setStyle("-fx-background-color: #ecf0f1; -fx-border-radius: 5px; -fx-padding: 8px;");
+        messageField.setMaxWidth(720);
     
         Button sendMessageButton = new Button("📨 Enviar");
     Button leaveGroupButton = new Button("🚪 Sair do Grupo");
@@ -824,7 +865,7 @@ backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
     
         groupChatLayout.getChildren().addAll(titleLabel, chatScroll, messageField, buttonLayout1, buttonLayout2, backButton);
     
-        Scene groupChatScene = new Scene(groupChatLayout, 600, 450);
+        Scene groupChatScene = new Scene(groupChatLayout, 960, 540);// 600, 450
         primaryStage.setScene(groupChatScene);
         primaryStage.show();
     }
@@ -836,14 +877,16 @@ backButton.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; " +
         VBox requestLayout = new VBox(15);
         requestLayout.setPadding(new Insets(20));
         requestLayout.setAlignment(Pos.CENTER);
-    requestLayout.setStyle("-fx-background-color: #2c3e50;");
+        //requestLayout.setStyle("-fx-background-color: #2c3e50;");
+        requestLayout.setBackground(new Background(backgroundImage));
     
-    Label titleLabel = new Label("📋 Solicitações Pendentes - " + groupName);
-    titleLabel.setFont(new Font("Arial", 18));
-    titleLabel.setTextFill(Color.WHITE);
+        Label titleLabel = new Label("📋 Solicitações Pendentes - " + groupName);
+        titleLabel.setFont(new Font("Arial", 18));
+        titleLabel.setTextFill(Color.WHITE);
 
         ListView<String> requestListView = new ListView<>();
         requestListView.setStyle("-fx-background-color: #ecf0f1; -fx-border-radius: 5px;");
+        requestListView.setMaxWidth(400);
 
         Button approveButton = new Button("✅ Aprovar");
         approveButton.setDisable(true); // Desativado inicialmente
@@ -916,7 +959,7 @@ try {
     
         requestLayout.getChildren().addAll(titleLabel, requestListView, approveButton, rejectButton, backButton);
     
-        Scene requestScene = new Scene(requestLayout, 450, 350);
+        Scene requestScene = new Scene(requestLayout, 960, 540);// 450, 350
         primaryStage.setScene(requestScene);
         primaryStage.show();
     }
@@ -926,26 +969,28 @@ try {
         currentGroup = groupName;
         
         VBox manageMembersLayout = new VBox(15);
-    manageMembersLayout.setPadding(new Insets(20));
-    manageMembersLayout.setAlignment(Pos.CENTER);
-    manageMembersLayout.setStyle("-fx-background-color: #2c3e50;");
-    
-    Label titleLabel = new Label("👥 Gerenciar Membros - " + groupName);
-    titleLabel.setFont(new Font("Arial", 18));
-    titleLabel.setTextFill(Color.WHITE);
-    ListView<String> memberListView = new ListView<>();
-    memberListView.setStyle("-fx-background-color: #ecf0f1; -fx-border-radius: 5px;");
-    Button removeMemberButton = new Button("❌ Expulsar Membro");
-        removeMemberButton.setDisable(true);
-        // Estilo dos botões
-    String removeButtonStyle = "-fx-background-color: #e74c3c; -fx-text-fill: white; " +
-    "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
-    "-fx-padding: 10px; -fx-border-radius: 8px;";
-String backButtonStyle = "-fx-background-color: #95a5a6; -fx-text-fill: white; " +
-  "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
-  "-fx-padding: 10px; -fx-border-radius: 8px;";
+        manageMembersLayout.setPadding(new Insets(20));
+        manageMembersLayout.setAlignment(Pos.CENTER);
+        //manageMembersLayout.setStyle("-fx-background-color: #2c3e50;");
+        manageMembersLayout.setBackground(new Background(backgroundImage));
 
-removeMemberButton.setStyle(removeButtonStyle);
+        Label titleLabel = new Label("👥 Gerenciar Membros - " + groupName);
+        titleLabel.setFont(new Font("Arial", 18));
+        titleLabel.setTextFill(Color.WHITE);
+        ListView<String> memberListView = new ListView<>();
+        memberListView.setStyle("-fx-background-color: #ecf0f1; -fx-border-radius: 5px;");
+        memberListView.setMaxWidth(400);
+        Button removeMemberButton = new Button("❌ Expulsar Membro");
+        removeMemberButton.setDisable(true);
+            // Estilo dos botões
+        String removeButtonStyle = "-fx-background-color: #e74c3c; -fx-text-fill: white; " +
+        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
+        "-fx-padding: 10px; -fx-border-radius: 8px;";
+        String backButtonStyle = "-fx-background-color: #95a5a6; -fx-text-fill: white; " +
+        "-fx-font-size: 14px; -fx-font-weight: bold; -fx-min-width: 200px; " +
+        "-fx-padding: 10px; -fx-border-radius: 8px;";
+
+        removeMemberButton.setStyle(removeButtonStyle);
         Button backButton = new Button("Voltar");
         backButton.setStyle(backButtonStyle);
 
@@ -985,7 +1030,7 @@ removeMemberButton.setStyle(removeButtonStyle);
     
         manageMembersLayout.getChildren().addAll(titleLabel, memberListView, removeMemberButton, backButton);
     
-        Scene manageMembersScene = new Scene(manageMembersLayout, 450, 350);
+        Scene manageMembersScene = new Scene(manageMembersLayout, 960, 540);// 450, 350
         primaryStage.setScene(manageMembersScene);
         primaryStage.show();
     }

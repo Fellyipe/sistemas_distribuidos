@@ -13,18 +13,18 @@ public class MessageInfo implements Serializable {
     private FileInfo file;  // Pode ser um arquivo ou null
     private boolean isFile; // Indica se é uma mensagem de arquivo ou texto
 
-    public MessageInfo(String sender, String recipient, String message) {
+    public MessageInfo(String sender, String recipient, String message, long timestamp) {
         this.sender = sender;
         this.recipient = recipient;
         this.message = message;
-        this.timestamp = System.currentTimeMillis(); // Armazena a hora da mensagem
+        this.timestamp = timestamp; // Armazena a hora da mensagem
         this.isFile = false;
     }
 
-    public MessageInfo(String sender, String recipient, FileInfo file) {
+    public MessageInfo(String sender, String recipient, FileInfo file, long timestamp) {
         this.sender = sender;
         this.recipient = recipient;
-        this.timestamp = System.currentTimeMillis(); // Armazena a hora da mensagem
+        this.timestamp = timestamp; // Armazena a hora da mensagem
         this.isFile = true;
         this.file = file;
     }
